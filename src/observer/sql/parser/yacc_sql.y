@@ -284,6 +284,7 @@ create_table_stmt:    /*create table 语句的语法解析树*/
     CREATE TABLE ID LBRACE attr_def attr_def_list RBRACE
     {
       $$ = new ParsedSqlNode(SCF_CREATE_TABLE);
+
       CreateTableSqlNode &create_table = $$->create_table;
       create_table.relation_name = $3;
       free($3);
@@ -314,6 +315,7 @@ attr_def_list:
       delete $2;
     }
     ;
+
     
 attr_def:
     ID type LBRACE number RBRACE 
