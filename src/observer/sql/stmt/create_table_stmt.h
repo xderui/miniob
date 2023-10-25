@@ -34,7 +34,7 @@ public:
           attr_infos_(attr_infos)
   {}
   virtual ~CreateTableStmt() = default;
-
+  
   StmtType type() const override { return StmtType::CREATE_TABLE; }
 
   const std::string &table_name() const { return table_name_; }

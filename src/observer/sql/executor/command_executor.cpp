@@ -25,6 +25,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/executor/set_variable_executor.h"
 #include "sql/executor/load_data_executor.h"
 #include "common/log/log.h"
+#include "sql/executor/drop_table_executor.h"
 
 RC CommandExecutor::execute(SQLStageEvent *sql_event)
 {
@@ -40,6 +41,11 @@ RC CommandExecutor::execute(SQLStageEvent *sql_event)
       CreateTableExecutor executor;
       return executor.execute(sql_event);
     } break;
+
+    case StmtType::DROP_TABLE: {
+      DropTableExecutor executor;
+      return executor.execute(sql_event);
+    }
 
     case StmtType::DESC_TABLE: {
       DescTableExecutor executor;
