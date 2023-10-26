@@ -72,6 +72,8 @@ QUOTE            [\'\"]
 /* 2. 写在最前面的优先 */
 
 /* yylval 就可以认为是 yacc 中 %union 定义的结构体(union 结构) */
+/*  {QUOTE}[0-9]{4}\-(0?[1-9]|1[012])\-(0?[1-9]|[12][0-9]|3[01]){QUOTE} yylval->string=strdup(yytext); RETURN_TOKEN(DATE_STR);  */
+
 %%
 
 {WHITE_SAPCE}                                        // ignore whitespace
@@ -79,6 +81,7 @@ QUOTE            [\'\"]
 
 [\-]?{DIGIT}+                           yylval->number=atoi(yytext); RETURN_TOKEN(NUMBER);
 [\-]?{DIGIT}+{DOT}{DIGIT}+              yylval->floats=(float)(atof(yytext)); RETURN_TOKEN(FLOAT);
+{QUOTE}[0-9]+-[0-9]+-[0-9]+{QUOTE} yylval->string=strdup(yytext); RETURN_TOKEN(DATE_STR);  
 
 ";"                                     RETURN_TOKEN(SEMICOLON);
 {DOT}                                   RETURN_TOKEN(DOT);
@@ -116,7 +119,6 @@ DATA                                    RETURN_TOKEN(DATA);
 INFILE                                  RETURN_TOKEN(INFILE);
 EXPLAIN                                 RETURN_TOKEN(EXPLAIN);
 {ID}                                    yylval->string=strdup(yytext); RETURN_TOKEN(ID);
-{QUOTE}[0-9]{4}\-(0?[1-9]|1[012])\-(0?[1-9]|[12][0-9]|3[01]){QUOTE} yylval->string=strdup(yytext); RETURN_TOKEN(DATE_STR);  
 "("                                     RETURN_TOKEN(LBRACE);
 ")"                                     RETURN_TOKEN(RBRACE);
 
