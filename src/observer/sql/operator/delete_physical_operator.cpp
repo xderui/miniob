@@ -32,7 +32,7 @@ RC DeletePhysicalOperator::open(Trx *trx)
     return rc;
   }
 
-  trx_ = trx;
+  trx_ = trx;  // 因为有子算子的存在，所以需要定义一个trx_来存放最新的trx
 
   return RC::SUCCESS;
 }

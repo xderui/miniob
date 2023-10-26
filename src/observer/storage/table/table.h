@@ -83,6 +83,8 @@ public:
    */
   RC insert_record(Record &record);
   RC delete_record(const Record &record);
+  // 更新
+  RC update_record(Record &record);
   RC visit_record(const RID &rid, bool readonly, std::function<void(Record &)> visitor);
   RC get_record(const RID &rid, Record &record);
 

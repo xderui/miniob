@@ -489,6 +489,20 @@ RC Table::delete_record(const Record &record)
   return rc;
 }
 
+// 更新
+// RC Table::update_record(Record &record){
+//   RC rc = RC::SUCCESS;
+//   // 删除 -> 插入
+//   std::cout<< "update_record" <<std::endl;
+
+//   for (Index *index : indexes_) {
+//     Record &update_record(record);
+//     std::cout<< record.data() << std::endl;
+//     rc = index->delete_entry(record.data(), &record.rid());
+//   }
+
+// }
+
 RC Table::insert_entry_of_indexes(const char *record, const RID &rid)
 {
   RC rc = RC::SUCCESS;

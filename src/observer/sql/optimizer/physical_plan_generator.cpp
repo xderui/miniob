@@ -34,6 +34,9 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/calc_physical_operator.h"
 #include "sql/expr/expression.h"
 #include "common/log/log.h"
+#include "sql/operator/update_logical_operator.h"
+#include "sql/operator/update_physical_operator.h"
+
 
 using namespace std;
 
@@ -73,6 +76,11 @@ RC PhysicalPlanGenerator::create(LogicalOperator &logical_operator, unique_ptr<P
     case LogicalOperatorType::JOIN: {
       return create_plan(static_cast<JoinLogicalOperator &>(logical_operator), oper);
     } break;
+
+    // update
+    case LogicalOperatorType::UPDATE: {
+      return create_plan(static_cast<UpdateLogicalOperator &>(logical_operator), oper);
+    }
 
     default: {
       return RC::INVALID_ARGUMENT;
@@ -215,14 +223,14 @@ RC PhysicalPlanGenerator::create_plan(InsertLogicalOperator &insert_oper, unique
 
 RC PhysicalPlanGenerator::create_plan(DeleteLogicalOperator &delete_oper, unique_ptr<PhysicalOperator> &oper)
 {
-  vector<unique_ptr<LogicalOperator>> &child_opers = delete_oper.children();
+  vector<unique_ptr<LogicalOperator>> &child_opers = delete_oper.children();  // 有子算子，需要先取出来
 
   unique_ptr<PhysicalOperator> child_physical_oper;
 
   RC rc = RC::SUCCESS;
   if (!child_opers.empty()) {
-    LogicalOperator *child_oper = child_opers.front().get();
-    rc = create(*child_oper, child_physical_oper);
+    LogicalOperator *child_oper = child_opers.front().get();     // 虽然delete操作有两个子算子，但实际上delete只有一个子算子
+    rc = create(*child_oper, child_physical_oper);              //  因为table_get是filter的子算子
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to create physical operator. rc=%s", strrc(rc));
       return rc;
@@ -231,8 +239,8 @@ RC PhysicalPlanGenerator::create_plan(DeleteLogicalOperator &delete_oper, unique
 
   oper = unique_ptr<PhysicalOperator>(new DeletePhysicalOperator(delete_oper.table()));
 
-  if (child_physical_oper) {
-    oper->add_child(std::move(child_physical_oper));
+  if (child_physical_oper) { 
+    oper->add_child(std::move(child_physical_oper));  // 与逻辑算子定义一样，需要添加子算子
   }
   return rc;
 }
@@ -292,3 +300,28 @@ RC PhysicalPlanGenerator::create_plan(CalcLogicalOperator &logical_oper, std::un
   return rc;
 }
 
+
+RC PhysicalPlanGenerator::create_plan(UpdateLogicalOperator &update_oper, unique_ptr<PhysicalOperator> &oper)
+{
+  vector<unique_ptr<LogicalOperator>> &child_opers = update_oper.children();
+
+  unique_ptr<PhysicalOperator> child_physical_oper;
+
+  RC rc = RC::SUCCESS;
+  if (!child_opers.empty()){
+    LogicalOperator *child_oper = child_opers.front().get();
+    rc = create(*child_oper, child_physical_oper);
+    if (rc != RC::SUCCESS){
+      return rc;
+    }
+  }
+
+  oper = unique_ptr<PhysicalOperator>(new UpdatePhysicalOperator(update_oper.table(),update_oper.field(), update_oper.value()));
+
+  if (child_physical_oper){
+    oper->add_child(std::move(child_physical_oper));
+  }
+
+  return rc;
+
+}
