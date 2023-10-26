@@ -132,11 +132,22 @@ RC SessionStage::handle_sql(SQLStageEvent *sql_event)
     return rc;
   }
 
-  rc = parse_stage_.handle_request(sql_event);
-  if (OB_FAIL(rc)) {
-    LOG_TRACE("failed to do parse. rc=%s", strrc(rc));
+  try{
+    rc = parse_stage_.handle_request(sql_event);
+    if (OB_FAIL(rc)) {
+      LOG_TRACE("failed to do parse. rc=%s", strrc(rc));
+      return rc;
+    }
+  }
+  catch(...) {
+    SessionEvent *session_event = sql_event->session_event();
+    SqlResult *sql_result = session_event->sql_result();
+    rc = RC::INVALID_ARGUMENT;
+    sql_result->set_return_code(rc);
+    LOG_TRACE("fialed to do parse. rc=%s", strrc(rc));
     return rc;
   }
+  
 
   rc = resolve_stage_.handle_request(sql_event);
   if (OB_FAIL(rc)) {
