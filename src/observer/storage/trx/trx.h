@@ -154,5 +154,8 @@ public:
 
   virtual RC redo(Db *db, const CLogRecord &log_record);
 
+  // 更新
+  // virtual RC update_record(Table *table, Record &record);
+
   virtual int32_t id() const = 0;
 };

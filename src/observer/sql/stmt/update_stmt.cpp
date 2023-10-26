@@ -16,9 +16,12 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "storage/db/db.h"
 #include "storage/table/table.h"
+#include "sql/stmt/filter_stmt.h"
+#include "sql/parser/parse_defs.h"
 
-UpdateStmt::UpdateStmt(Table *table, Value *values, int value_amount)
-    : table_(table), values_(values), value_amount_(value_amount)
+
+UpdateStmt::UpdateStmt(Table *table, Field field, Value value, FilterStmt *filter_stmt)
+    : table_(table), field_(field), value_(value), filter_stmt_(filter_stmt)
 {}
 
 RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt)
@@ -35,14 +38,41 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt)
     LOG_WARN("invalid argument. relation name is null.");
     return RC::INVALID_ARGUMENT;
   }
+  
   Table *table = db->find_table(table_name);
-  // Value *value = &(update_sql.value);
-  Value *value = new Value(update_sql.value);
-  int value_amount = 1; // only sole attribute
 
-  // UpdateStmt(Table *table, Value *values, int value_amount);
-  UpdateStmt *update_stmt = new UpdateStmt(table, value, value_amount);
+ /*
+  struct RelAttrSqlNode *relation_attr;
+  relation_attr->attribute_name = update_sql.attribute_name;
+  relation_attr->relation_name = update_sql.relation_name;
+ */
+  
+  const FieldMeta *field_meta = table->table_meta().field(update_sql.attribute_name.c_str());
 
+  // 过滤算子
+  std::unordered_map<std::string, Table *> table_map;
+  table_map.insert(std::pair<std::string, Table *>(table_name, table));
+  FilterStmt *filter_stmt = nullptr;
+  RC rc = FilterStmt::create(
+      db, 
+      table,
+      &table_map,
+      update_sql.conditions.data(),
+      static_cast<int>(update_sql.conditions.size()),
+      filter_stmt
+    );
+
+  if (rc != RC::SUCCESS){
+    LOG_WARN("cannot construct filter stmt");
+    return rc;
+  }
+
+  UpdateStmt *update_stmt = new UpdateStmt(table,
+      Field(table, field_meta), 
+      update_sql.value, 
+      filter_stmt
+    );
+  // std::cout<<"update!"<<std::endl;
   stmt = update_stmt;
   return RC::SUCCESS;
 }

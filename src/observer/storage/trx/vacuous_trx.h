@@ -48,5 +48,8 @@ public:
   RC commit() override;
   RC rollback() override;
 
+  // 更新
+  // RC update_record(Table *table, Record &record) override;
+
   int32_t id() const override { return 0; }
 };

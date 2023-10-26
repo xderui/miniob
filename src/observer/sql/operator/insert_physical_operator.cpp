@@ -26,13 +26,13 @@ InsertPhysicalOperator::InsertPhysicalOperator(Table *table, vector<Value> &&val
 RC InsertPhysicalOperator::open(Trx *trx)
 {
   Record record;
-  RC rc = table_->make_record(static_cast<int>(values_.size()), values_.data(), record);
+  RC rc = table_->make_record(static_cast<int>(values_.size()), values_.data(), record);  // 由给定数据生成一个record
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to make record. rc=%s", strrc(rc));
     return rc;
   }
 
-  rc = trx->insert_record(table_, record);
+  rc = trx->insert_record(table_, record);  // 将记录插入table中
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to insert record by transaction. rc=%s", strrc(rc));
   }
