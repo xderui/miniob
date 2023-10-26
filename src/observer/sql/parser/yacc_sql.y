@@ -548,25 +548,25 @@ aggregation_func:
       $$ = new FuncSqlNode;
       $$->func_name = "max";
       $$->attribute = $3;
-      delete $1;
+      delete $3;
     }
     | MIN_F LBRACE function_attr RBRACE {
       $$ = new FuncSqlNode;
       $$->func_name = "min";
       $$->attribute = $3;
-      delete $1;
+      delete $3;
     }
     | COUNT_F LBRACE function_attr RBRACE {
       $$ = new FuncSqlNode;
       $$->func_name = "count";
       $$->attribute = $3;
-      delete $1;
+      delete $3;
     }
     | AVG_F LBRACE function_attr RBRACE {
       $$ = new FuncSqlNode;
       $$->func_name = "avg";
       $$->attribute = $3;
-      delete $1;
+      delete $3;
     }
     ;
 
