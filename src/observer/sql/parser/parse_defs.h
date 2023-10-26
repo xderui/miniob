@@ -77,6 +77,16 @@ struct ConditionSqlNode
 };
 
 /**
+ * @brief 描述一个聚合函数
+ * @ingroup SQLParser
+ * @details 目前支持max、min、count、avg
+*/
+struct AggrFuncSqlNode {
+  std::string    func_type;   ///< 聚合函数类型
+  RelAttrSqlNode attribute;   ///< 要聚合的字段
+};
+
+/**
  * @brief 描述一个select语句
  * @ingroup SQLParser
  * @details 一个正常的select语句描述起来比这个要复杂很多，这里做了简化。
@@ -92,6 +102,7 @@ struct SelectSqlNode
   std::vector<RelAttrSqlNode>     attributes;    ///< attributes in select clause
   std::vector<std::string>        relations;     ///< 查询的表
   std::vector<ConditionSqlNode>   conditions;    ///< 查询条件，使用AND串联起来多个条件
+  std::string                     aggregation;   ///< 聚合操作
 };
 
 /**
