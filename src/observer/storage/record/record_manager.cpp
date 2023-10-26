@@ -260,7 +260,7 @@ RC RecordPageHandler::delete_record(const RID *rid)
 // insert
 RC RecordPageHandler::update_record(const char *data, RID *rid){
   Bitmap bitmap(bitmap_, page_header_->record_capacity);
-  
+  return RC::SUCCESS;
 }
 
 
