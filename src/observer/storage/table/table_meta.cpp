@@ -124,7 +124,7 @@ const FieldMeta *TableMeta::field(const char *name) const
   if (nullptr == name) {
     return nullptr;
   }
-  for (const FieldMeta &field : fields_) {
+  for (const FieldMeta &field : fields_) {  // 这一行存在问题
     if (0 == strcmp(field.name(), name)) {
       return &field;
     }
