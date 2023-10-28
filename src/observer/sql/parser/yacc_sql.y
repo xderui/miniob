@@ -88,6 +88,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         AND
         SET
         ON
+        IN
         LOAD
         DATA
         INFILE
@@ -640,6 +641,19 @@ condition:
 
       delete $1;
       delete $3;
+    }    
+    | rel_attr comp_op LBRACE select_stmt RBRACE
+    {
+      $$ = new ConditionSqlNode;
+      $$->left_is_attr = 0;
+      $$->left_attr = *$1;
+      $$->right_is_attr = 0;
+      $$->left_is_sql = 0;
+      $$->right_is_sql = 1;
+      $$->right_sql = $4;
+      $$->comp = $2;
+      delete $1;
+      delete $4;
     }
     ;
 
@@ -650,6 +664,7 @@ comp_op:
     | LE { $$ = LESS_EQUAL; }
     | GE { $$ = GREAT_EQUAL; }
     | NE { $$ = NOT_EQUAL; }
+    | IN { $$ = IN_OP; }
     ;
 
 load_data_stmt:

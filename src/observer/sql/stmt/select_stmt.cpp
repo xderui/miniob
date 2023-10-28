@@ -43,11 +43,75 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     return RC::INVALID_ARGUMENT;
   }
 
+  // 首先从子sql中提取table和field
+  std::vector<RelAttrSqlNode> total_attr(select_sql.attributes);
+  std::vector<std::string> total_relations(select_sql.relations);
+  std::vector<ConditionSqlNode> total_conditions;
+  
+  //1. 将in条件转换为 = 
+  const ConditionSqlNode *condition_sql_node = select_sql.conditions.data();
+
+  // 创建Condition节点队列，可能子sql中还有sql
+  // std::queue<>
+  
+  for(int i=0;i<select_sql.conditions.size();++i, condition_sql_node++){
+    std::cout<<condition_sql_node->comp<<std::endl;
+    if(condition_sql_node->comp==IN_OP){
+      SelectSqlNode select_sql_node = condition_sql_node->left_is_sql
+                                      ? condition_sql_node->left_sql->selection
+                                      : condition_sql_node->right_sql->selection;
+
+      // std::vector<RelAttrSqlNode> attributes = select_sql_node.attributes;
+      // std::vector<std::string> relations = select_sql_node.relations;
+      // std::vector<ConditionSqlNode> conditions = select_sql_node.conditions;
+
+      // std::merge(select_sql.attributes.begin(), select_sql.attributes.end(), attributes.begin(), attributes.end(), total_attr);
+      // std::merge(select_sql.relations.begin(), select_sql.relations.end(), relations.begin(), relations.end(), total_relations);
+      // std::merge(select_sql.conditions.begin(), select_sql.conditions.end(), condtion_sql_node.begin(), condtion_sql_node.end(), total_conditions);
+      ConditionSqlNode new_condition;
+      new_condition.comp = EQUAL_TO;
+      new_condition.left_is_attr = 1;
+      new_condition.right_is_attr = 1;
+      new_condition.left_is_sql = 0;
+      new_condition.right_is_sql = 0;
+      // 暂时只考虑左右两边为单字段属性的情况
+      select_sql_node.attributes[0].relation_name = select_sql_node.relations[0];  // 只考虑单字段单张表
+
+      std::cout<<select_sql_node.attributes[0].relation_name<<std::endl;
+      std::cout<<select_sql_node.attributes[0].attribute_name<<std::endl;
+
+      if (condition_sql_node->left_is_sql){
+        new_condition.right_attr = condition_sql_node->right_attr;
+        
+        new_condition.left_attr = select_sql_node.attributes[0];  // 单字段
+        total_attr.emplace_back(new_condition.left_attr);
+
+      }
+      if(condition_sql_node->right_is_sql){
+        new_condition.left_attr = condition_sql_node->left_attr;
+        new_condition.right_attr = select_sql_node.attributes[0];  // 单字段
+        total_attr.emplace_back(new_condition.right_attr);
+      }
+      total_conditions.emplace_back(new_condition);
+
+      // 子sql中也有where
+      std::vector<ConditionSqlNode> sub_conditons(select_sql_node.conditions);
+      for(ConditionSqlNode c : sub_conditons){
+        total_conditions.emplace_back(c);
+      }
+      // std::vector<ConditionSqlNode> sub_condition(select_sql_node.conditions);
+      // std::merge(total_conditions.begin(), total_conditions.end(), sub_condition.begin(), sub_condition.end(), total_conditions); 
+    }
+
+    total_conditions.emplace_back(*condition_sql_node);
+    
+  }
+
   // collect tables in `from` statement
   std::vector<Table *> tables;
   std::unordered_map<std::string, Table *> table_map;
-  for (size_t i = 0; i < select_sql.relations.size(); i++) {
-    const char *table_name = select_sql.relations[i].c_str();
+  for (size_t i = 0; i < total_relations.size(); i++) {
+    const char *table_name = total_relations[i].c_str();
     if (nullptr == table_name) {
       LOG_WARN("invalid argument. relation name is null. index=%d", i);
       return RC::INVALID_ARGUMENT;
@@ -65,8 +129,8 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
 
   // collect query fields in `select` statement
   std::vector<Field> query_fields;
-  for (int i = static_cast<int>(select_sql.attributes.size()) - 1; i >= 0; i--) {
-    const RelAttrSqlNode &relation_attr = select_sql.attributes[i];
+  for (int i = static_cast<int>(total_attr.size()) - 1; i >= 0; i--) {
+    const RelAttrSqlNode &relation_attr = total_attr[i];
 
     if (common::is_blank(relation_attr.relation_name.c_str()) &&
         0 == strcmp(relation_attr.attribute_name.c_str(), "*")) {
@@ -135,7 +199,8 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   RC rc = FilterStmt::create(db,
       default_table,
       &table_map,
-      select_sql.conditions.data(),
+      // select_sql.conditions.data(),
+      total_conditions.data(),
       static_cast<int>(select_sql.conditions.size()),
       filter_stmt);
   if (rc != RC::SUCCESS) {
