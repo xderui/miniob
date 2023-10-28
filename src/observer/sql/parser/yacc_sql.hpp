@@ -52,54 +52,55 @@ extern int yydebug;
     SEMICOLON = 258,
     CREATE = 259,
     DROP = 260,
-    TABLE = 261,
-    TABLES = 262,
-    INDEX = 263,
-    CALC = 264,
-    SELECT = 265,
-    DESC = 266,
-    SHOW = 267,
-    SYNC = 268,
-    INSERT = 269,
-    DELETE = 270,
-    UPDATE = 271,
-    LBRACE = 272,
-    RBRACE = 273,
-    COMMA = 274,
-    TRX_BEGIN = 275,
-    TRX_COMMIT = 276,
-    TRX_ROLLBACK = 277,
-    INT_T = 278,
-    STRING_T = 279,
-    FLOAT_T = 280,
-    DATE_T = 281,
-    HELP = 282,
-    EXIT = 283,
-    DOT = 284,
-    INTO = 285,
-    VALUES = 286,
-    FROM = 287,
-    WHERE = 288,
-    AND = 289,
-    SET = 290,
-    ON = 291,
-    LOAD = 292,
-    DATA = 293,
-    INFILE = 294,
-    EXPLAIN = 295,
-    EQ = 296,
-    LT = 297,
-    GT = 298,
-    LE = 299,
-    GE = 300,
-    NE = 301,
-    NUMBER = 302,
-    FLOAT = 303,
-    ID = 304,
-    DATE_STR = 305,
-    SSS = 306,
-    JOIN = 307,
-    UMINUS = 308
+    INNER = 261,
+    TABLE = 262,
+    TABLES = 263,
+    INDEX = 264,
+    CALC = 265,
+    SELECT = 266,
+    DESC = 267,
+    SHOW = 268,
+    SYNC = 269,
+    INSERT = 270,
+    DELETE = 271,
+    UPDATE = 272,
+    LBRACE = 273,
+    RBRACE = 274,
+    COMMA = 275,
+    TRX_BEGIN = 276,
+    TRX_COMMIT = 277,
+    TRX_ROLLBACK = 278,
+    INT_T = 279,
+    STRING_T = 280,
+    FLOAT_T = 281,
+    DATE_T = 282,
+    HELP = 283,
+    EXIT = 284,
+    DOT = 285,
+    INTO = 286,
+    VALUES = 287,
+    FROM = 288,
+    WHERE = 289,
+    AND = 290,
+    SET = 291,
+    ON = 292,
+    LOAD = 293,
+    DATA = 294,
+    INFILE = 295,
+    EXPLAIN = 296,
+    EQ = 297,
+    LT = 298,
+    GT = 299,
+    LE = 300,
+    GE = 301,
+    NE = 302,
+    NUMBER = 303,
+    FLOAT = 304,
+    ID = 305,
+    DATE_STR = 306,
+    SSS = 307,
+    JOIN = 308,
+    UMINUS = 309
   };
 #endif
 
@@ -107,7 +108,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 104 "yacc_sql.y"
+#line 105 "yacc_sql.y"
 
   ParsedSqlNode *                   sql_node;
   ConditionSqlNode *                condition;
@@ -127,7 +128,7 @@ union YYSTYPE
   int                               number;
   float                             floats;
 
-#line 131 "yacc_sql.hpp"
+#line 132 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;

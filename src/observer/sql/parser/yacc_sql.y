@@ -57,6 +57,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %token  SEMICOLON
         CREATE
         DROP
+        INNER
         TABLE
         TABLES
         INDEX
@@ -603,19 +604,22 @@ join_list:
     {
       $$ = nullptr;
     }
+    | INNER join_list {
+      $$ = $2;
+    }
     | JOIN ID ON condition join_list {
       $$ = new JoinSqlNode();
-
-      if ($5 != nullptr) {
-        $$->relations.swap($5->relations);
-        $$->conditions.swap($5->conditions);
-        delete $5;
-      }
 
       $$->relations.push_back($2);
       $$->conditions.push_back(*$4);
       free($2);
       delete($4);
+
+      if ($5 != nullptr) {
+        $$->relations.insert($$->relations.end(), $5->relations.begin(), $5->relations.end());
+        $$->conditions.insert($$->conditions.end(), $5->conditions.begin(), $5->conditions.end());
+        delete $5;
+      }
     }
 where:
     /* empty */
