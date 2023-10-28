@@ -226,6 +226,12 @@ int Value::compare(const Value &other) const
   } else if (this->attr_type_ == FLOATS && other.attr_type_ == INTS) {
     float other_data = other.num_value_.int_value_;
     return common::compare_float((void *)&this->num_value_.float_value_, (void *)&other_data);
+  } else if (this->attr_type_ == INTS && other.attr_type_ == CHARS) {         //join_table的测试样例有 INTS 与 CHARS的比较
+    std::string this_data = std::to_string(this->num_value_.int_value_);
+    return common::compare_string((void *)(this_data.c_str()), this_data.length(), (void *)(other.str_value_.c_str()), other.str_value_.length());
+  } else if (this->attr_type_ == CHARS && other.attr_type_ == INTS) {
+    std::string other_data = std::to_string(other.num_value_.int_value_);
+    return common::compare_string((void*)(this->str_value_.c_str()), this->str_value_.length(), (void*)(other_data.c_str()), other_data.length());
   }
   LOG_WARN("not supported");
   return -1;  // TODO return rc?
