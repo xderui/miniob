@@ -104,6 +104,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %union {
   ParsedSqlNode *                   sql_node;
   ConditionSqlNode *                condition;
+  JoinSqlNode *                     join_sql_node;
   Value *                           value;
   enum CompOp                       comp;
   RelAttrSqlNode *                  rel_attr;
@@ -125,6 +126,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %token <string> ID
 %token <string> DATE_STR
 %token <string> SSS
+%token <string> JOIN
 //非终结符
 
 /** type 定义了各种解析后的结果输出的是什么类型。类型对应了 union 中的定义的成员变量名称 **/
@@ -138,6 +140,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <attr_info>           attr_def
 %type <value_list>          value_list
 %type <condition_list>      where
+%type <join_sql_node>       join_list
 %type <condition_list>      condition_list
 %type <rel_attr_list>       select_attr
 %type <relation_list>       rel_list
@@ -426,7 +429,7 @@ update_stmt:      /*  update 语句的语法解析树*/
     }
     ;
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT select_attr FROM ID rel_list where
+    SELECT select_attr FROM ID rel_list join_list where
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -440,12 +443,41 @@ select_stmt:        /*  select 语句的语法解析树*/
       $$->selection.relations.push_back($4);
       std::reverse($$->selection.relations.begin(), $$->selection.relations.end());
 
-      if ($6 != nullptr) {
-        $$->selection.conditions.swap(*$6);
-        delete $6;
+      if ($7 != nullptr) {
+        $$->selection.conditions.swap(*$7);
+        delete $7;
       }
       free($4);
+
+      if ($6 != nullptr) {
+        $$->selection.relations.insert($$->selection.relations.end(), $6->relations.begin(), $6->relations.end());
+        $$->selection.conditions.insert($$->selection.conditions.end(), $6->conditions.begin(), $6->conditions.end());
+        delete $6;
+      }
     }
+    // | SELECT select_attr FROM ID rel_list JOIN ID ON condition where
+    // {
+    //   $$ = new ParsedSqlNode(SCF_SELECT);
+    //   if ($2 != nullptr) {
+    //     $$->selection.attributes.swap(*$2);
+    //     delete $2;
+    //   }
+    //   if ($5 != nullptr) {
+    //     $$->selection.relations.swap(*$5);
+    //     delete $5;
+    //   }
+    //   $$->selection.relations.push_back($4);
+    //   $$->selection.relations.push_back($7);
+    //   free($4);
+    //   free($7);
+
+    //   if($10 != nullptr) {
+    //     $$->selection.conditions.swap(*$10);
+    //     delete $10;
+    //   }
+    //   $$->selection.conditions.emplace_back(*$9);
+    //   delete $9;
+    // }
     ;
 calc_stmt:
     CALC expression_list
@@ -567,6 +599,24 @@ rel_list:
       free($2);
     }
     ;
+join_list:
+    {
+      $$ = nullptr;
+    }
+    | JOIN ID ON condition join_list {
+      $$ = new JoinSqlNode();
+
+      if ($5 != nullptr) {
+        $$->relations.swap($5->relations);
+        $$->conditions.swap($5->conditions);
+        delete $5;
+      }
+
+      $$->relations.push_back($2);
+      $$->conditions.push_back(*$4);
+      free($2);
+      delete($4);
+    }
 where:
     /* empty */
     {

@@ -98,7 +98,8 @@ extern int yydebug;
     ID = 304,
     DATE_STR = 305,
     SSS = 306,
-    UMINUS = 307
+    JOIN = 307,
+    UMINUS = 308
   };
 #endif
 
@@ -106,10 +107,11 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 103 "yacc_sql.y"
+#line 104 "yacc_sql.y"
 
   ParsedSqlNode *                   sql_node;
   ConditionSqlNode *                condition;
+  JoinSqlNode *                     join_sql_node;
   Value *                           value;
   enum CompOp                       comp;
   RelAttrSqlNode *                  rel_attr;
@@ -125,7 +127,7 @@ union YYSTYPE
   int                               number;
   float                             floats;
 
-#line 129 "yacc_sql.hpp"
+#line 131 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;
