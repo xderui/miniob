@@ -607,13 +607,17 @@ join_list:
     | INNER join_list {
       $$ = $2;
     }
-    | JOIN ID ON condition join_list {
+    | JOIN ID ON condition_list join_list {
       $$ = new JoinSqlNode();
 
+      if ($4 != nullptr) {
+        $$->conditions.swap(*$4);
+        delete $4;
+      }
+
       $$->relations.push_back($2);
-      $$->conditions.push_back(*$4);
+      // $$->conditions.push_back(*$4);
       free($2);
-      delete($4);
 
       if ($5 != nullptr) {
         $$->relations.insert($$->relations.end(), $5->relations.begin(), $5->relations.end());
