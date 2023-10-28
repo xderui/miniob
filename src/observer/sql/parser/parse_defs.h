@@ -28,16 +28,33 @@ class Expression;
  */
 
 /**
+ * @brief 描述聚合操作
+ * @ingroup SQLParser
+*/
+enum AggrOp
+{
+  MAX,    ///< max
+  MIN,    ///< min
+  COUNT,  ///< count
+  AVG,    ///< avg
+  SUM,    ///< sum
+  NONE    ///< none
+};
+
+/**
  * @brief 描述一个属性
  * @ingroup SQLParser
  * @details 属性，或者说字段(column, field)
  * Rel -> Relation
  * Attr -> Attribute
+ * Aggr -> Aggregation
  */
 struct RelAttrSqlNode
 {
-  std::string relation_name;   ///< relation name (may be NULL) 表名
-  std::string attribute_name;  ///< attribute name              属性名
+  std::string relation_name;       ///< relation name (may be NULL) 表名
+  std::string attribute_name;      ///< attribute name              属性名
+  AggrOp      aggregation = NONE;  ///< aggregation (may be empty)  聚合操作
+  bool        valid = true;        ///< valid                       是否合法
 };
 
 /**
@@ -74,16 +91,6 @@ struct ConditionSqlNode
                                    ///< 1时，操作符右边是属性名，0时，是属性值
   RelAttrSqlNode  right_attr;      ///< right-hand side attribute if right_is_attr = TRUE 右边的属性
   Value           right_value;     ///< right-hand side value if right_is_attr = FALSE
-};
-
-/**
- * @brief 描述一个聚合函数
- * @ingroup SQLParser
- * @details 目前支持max、min、count、avg
-*/
-struct AggrFuncSqlNode {
-  std::string    func_type;   ///< 聚合函数类型
-  RelAttrSqlNode attribute;   ///< 要聚合的字段
 };
 
 /**

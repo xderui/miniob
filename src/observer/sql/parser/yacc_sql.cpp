@@ -2209,8 +2209,8 @@ yyreduce:
   case 67: /* aggregation_func: MAX_F LBRACE function_attr RBRACE  */
 #line 547 "yacc_sql.y"
                                       {
-      (yyval.aggr_function) = new FuncSqlNode;
-      (yyval.aggr_function)->func_name = "max";
+      (yyval.aggr_function) = new AggrFuncSqlNode;
+      (yyval.aggr_function)->func_type = "max";
       (yyval.aggr_function)->attribute = (yyvsp[-1].rel_attr);
       delete (yyvsp[-1].rel_attr);
     }
@@ -2220,8 +2220,8 @@ yyreduce:
   case 68: /* aggregation_func: MIN_F LBRACE function_attr RBRACE  */
 #line 553 "yacc_sql.y"
                                         {
-      (yyval.aggr_function) = new FuncSqlNode;
-      (yyval.aggr_function)->func_name = "min";
+      (yyval.aggr_function) = new AggrFuncSqlNode;
+      (yyval.aggr_function)->func_type = "min";
       (yyval.aggr_function)->attribute = (yyvsp[-1].rel_attr);
       delete (yyvsp[-1].rel_attr);
     }
@@ -2231,8 +2231,8 @@ yyreduce:
   case 69: /* aggregation_func: COUNT_F LBRACE function_attr RBRACE  */
 #line 559 "yacc_sql.y"
                                           {
-      (yyval.aggr_function) = new FuncSqlNode;
-      (yyval.aggr_function)->func_name = "count";
+      (yyval.aggr_function) = new AggrFuncSqlNode;
+      (yyval.aggr_function)->func_type = "count";
       (yyval.aggr_function)->attribute = (yyvsp[-1].rel_attr);
       delete (yyvsp[-1].rel_attr);
     }
@@ -2242,7 +2242,7 @@ yyreduce:
   case 70: /* aggregation_func: AVG_F LBRACE function_attr RBRACE  */
 #line 565 "yacc_sql.y"
                                         {
-      (yyval.aggr_function) = new FuncSqlNode;
+      (yyval.aggr_function) = new AggrFuncSqlNode;
       (yyval.aggr_function)->func_name = "avg";
       (yyval.aggr_function)->attribute = (yyvsp[-1].rel_attr);
       delete (yyvsp[-1].rel_attr);

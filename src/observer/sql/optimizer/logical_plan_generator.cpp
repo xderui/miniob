@@ -25,6 +25,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/project_logical_operator.h"
 #include "sql/operator/explain_logical_operator.h"
 #include "sql/operator/update_logical_operator.h"
+#include "sql/operator/aggregate_logical_operator.h"
 
 #include "sql/stmt/stmt.h"
 #include "sql/stmt/calc_stmt.h"
@@ -34,6 +35,8 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/delete_stmt.h"
 #include "sql/stmt/explain_stmt.h"
 #include "sql/stmt/update_stmt.h"
+
+#include "sql/parser/parse.h"
 
 using namespace std;
 
@@ -131,6 +134,15 @@ RC LogicalPlanGenerator::create_plan(
   }
 
   logical_operator.swap(project_oper);
+
+  if (all_fields[0].aggregation() != AggrOp::NONE) {
+    unique_ptr<LogicalOperator> aggregate_oper(new AggregateLogicalOperator(all_fields));
+    if (project_oper) {
+      aggregate_oper->add_child(std::move(project_oper));
+    }
+    logical_operator.swap(aggregate_oper);
+  }
+
   return RC::SUCCESS;
 }
 

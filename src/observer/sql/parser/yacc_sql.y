@@ -87,10 +87,11 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         WHERE
         AND
         SET
-        MAX_F
-        MIN_F
-        COUNT_F
-        AVG_F
+        MAX
+        MIN
+        COUNT
+        AVG
+        SUM
         ON
         LOAD
         DATA
@@ -114,7 +115,6 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
   std::vector<AttrInfoSqlNode> *    attr_infos;
   AttrInfoSqlNode *                 attr_info;
   Expression *                      expression;
-  AggrFuncSqlNode *                 aggr_function;
   std::vector<Expression *> *       expression_list;
   std::vector<Value> *              value_list;
   std::vector<ConditionSqlNode> *   condition_list;
@@ -139,6 +139,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <number>              number
 %type <comp>                comp_op
 %type <rel_attr>            rel_attr
+%type <rel_attr>            rel_aggr_attr
 %type <attr_infos>          attr_def_list
 %type <attr_info>           attr_def
 %type <value_list>          value_list
@@ -146,11 +147,10 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <condition_list>      condition_list
 %type <rel_attr_list>       select_attr
 %type <relation_list>       rel_list
-%type <rel_attr_list>       attr_list
+%type <rel_attr_list>       rel_attr_list
+%type <rel_attr_list>       rel_aggr_attr_list
 %type <expression>          expression
 %type <expression_list>     expression_list
-%type <rel_attr>            function_attr
-%type <aggr_function>       aggregation_func
 %type <sql_node>            calc_stmt
 %type <sql_node>            select_stmt
 %type <sql_node>            insert_stmt
@@ -455,27 +455,6 @@ select_stmt:        /*  select 语句的语法解析树*/
       }
       free($4);
     }
-    | SELECT aggregation_func FROM ID rel_list where
-    {
-      $$ = new ParsedSqlNode(SCF_SELECT);
-      if ($2 != nullptr) {
-        $$->selection.attributes.push_back($2->attribute);
-        $$->selection.aggregation = $2->func_type;
-        delete $2;
-      }
-      if ($5 != nullptr) {
-        $$->selection.relations.swap(*$5);
-        delete $5;
-      }
-      $$->selection.relations.push_back($4);
-      std::reverse($$->selection.relations.begin(), $$->selection.relations.end());
-
-      if ($6 != nullptr) {
-        $$->selection.conditions.swap(*$6);
-        delete $6;
-      }
-      free($4);
-    }
     ;
 
 calc_stmt:
@@ -531,45 +510,6 @@ expression:
     }
     ;
 
-function_attr:
-    '*' {
-      $$ = new RelAttrSqlNode;
-      $$->relation_name = "";
-      $$->attribute_name = "*";
-    }
-    | rel_attr {
-      $$ = $1;
-      delete $1;
-    }
-    ;
-
-aggregation_func:
-    MAX_F LBRACE function_attr RBRACE {
-      $$ = new FuncSqlNode;
-      $$->func_name = "max";
-      $$->attribute = $3;
-      delete $3;
-    }
-    | MIN_F LBRACE function_attr RBRACE {
-      $$ = new FuncSqlNode;
-      $$->func_name = "min";
-      $$->attribute = $3;
-      delete $3;
-    }
-    | COUNT_F LBRACE function_attr RBRACE {
-      $$ = new FuncSqlNode;
-      $$->func_name = "count";
-      $$->attribute = $3;
-      delete $3;
-    }
-    | AVG_F LBRACE function_attr RBRACE {
-      $$ = new FuncSqlNode;
-      $$->func_name = "avg";
-      $$->attribute = $3;
-      delete $3;
-    }
-    ;
-
 select_attr:
     '*' {
       $$ = new std::vector<RelAttrSqlNode>;
@@ -578,7 +518,7 @@ select_attr:
       attr.attribute_name = "*";
       $$->emplace_back(attr);
     }
-    | rel_attr attr_list {
+    | rel_aggr_attr rel_aggr_attr_list {
       if ($2 != nullptr) {
         $$ = $2;
       } else {
@@ -586,6 +526,71 @@ select_attr:
       }
       $$->emplace_back(*$1);
       delete $1;
+    }
+    ;
+
+aggr_attr:
+    MAX LBRACE rel_attr rel_attr_list RBRACE {
+      $$ = $3;
+      $$->aggregation = MAX;
+      if ($4 != nullptr) {
+        $$->valid = false;
+        delete $4;
+      }
+    }
+    | MIN LBRACE rel_attr rel_attr_list RBRACE {
+      $$ = $3;
+      $$->aggregation = MIN;
+      if ($4 != nullptr) {
+        $$->valid = false;
+        delete $4;
+      }
+    }
+    | COUNT LBRACE rel_attr rel_attr_list RBRACE {
+      $$ = $3;
+      $$->aggregation = COUNT;
+      if ($4 != nullptr) {
+        $$->valid = false;
+        delete $4;
+      }
+    }
+    | AVG LBRACE rel_attr rel_attr_list RBRACE {
+      $$ = $3;
+      $$->aggregation = AVG;
+      if ($4 != nullptr) {
+        $$->valid = false;
+        delete $4;
+      }
+    }
+    | SUM LBRACE rel_attr rel_attr_list RBRACE {
+      $$ = $3;
+      $$->aggregation = SUM;
+      if ($4 != nullptr) {
+        $$->valid = false;
+        delete $4;
+      }
+    }
+    ;
+
+rel_aggr_attr:
+    rel_attr
+    | aggr_attr
+    ;
+
+rel_aggr_attr_list:
+    /* empty */
+    {
+      $$ = nullptr;
+    }
+    | COMMA rel_aggr_attr rel_aggr_attr_list {
+      if ($3 != nullptr) {
+        $$ = $3;
+      } else {
+        $$ = new std::vector<RelAttrSqlNode>;
+      }
+
+      $$->emplace_back(*$2);
+      delete $2;
     }
     ;
 
@@ -604,12 +609,12 @@ rel_attr:
     }
     ;
 
-attr_list:
+rel_attr_list:
     /* empty */
     {
       $$ = nullptr;
     }
-    | COMMA rel_attr attr_list {
+    | COMMA rel_attr rel_attr_list {
       if ($3 != nullptr) {
         $$ = $3;
       } else {

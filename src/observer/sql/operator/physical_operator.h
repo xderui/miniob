@@ -42,6 +42,7 @@ enum class PhysicalOperatorType
   NESTED_LOOP_JOIN,
   EXPLAIN,
   PREDICATE,
+  AGGREGATE,
   PROJECT,
   CALC,
   STRING_LIST,
