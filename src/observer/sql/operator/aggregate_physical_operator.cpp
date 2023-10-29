@@ -35,7 +35,7 @@ RC AggregatePhysicalOperator::next()
     AggrOp aggregation = aggregations_[i];
 
     // count aggregation
-    if (aggregation == COUNT) {
+    if (aggregation == AggrOp::AGGR_COUNT) {
       result.set_int(tuples_.size());
       break;
     }
@@ -43,50 +43,49 @@ RC AggregatePhysicalOperator::next()
     // other aggregation
     int sum_i;
     float sum_f;
+    AttrType attr_type = AttrType::INTS;
     switch (aggregation) {
-      case MAX:
+      case AggrOp::AGGR_MAX:
         for (auto tuple : tuples_) {
           rc = tuple->cell_at(i, cell);
           result = cell.compare(result) ? cell : result;
         }
         break;
-      case MIN:
+      case AggrOp::AGGR_MIN:
         for (auto tuple : tuples_) {
           rc = tuple->cell_at(i, cell);
           result = cell.compare(result) ? result : cell;
         }
         break;
-      case AVG:
-        AttrType type = AttrType::INTS;
+      case AggrOp::AGGR_AVG:
         for (auto tuple : tuples_) {
           rc = tuple->cell_at(i, cell);
-          type = cell.attr_type();
-          if (type == AttrType::INTS) {
+          attr_type = cell.attr_type();
+          if (attr_type == AttrType::INTS) {
             sum_i += cell.get_int();
-          } else if (type == AttrType::FLOATS) {
+          } else if (attr_type == AttrType::FLOATS) {
             sum_f += cell.get_float();
           }
         }
-        if (type == AttrType::INTS) {
+        if (attr_type == AttrType::INTS) {
           result.set_float(sum_i / tuples_.size());
-        } else if (type == AttrType::FLOATS) {
+        } else if (attr_type == AttrType::FLOATS) {
           result.set_float(sum_f / tuples_.size());
         }
         break;
-      case SUM:
-        AttrType type = AttrType::INTS;
+      case AggrOp::AGGR_SUM:
         for (auto tuple : tuples_) {
           rc = tuple->cell_at(i, cell);
-          type = cell.attr_type();
-          if (type == AttrType::INTS) {
+          attr_type = cell.attr_type();
+          if (attr_type == AttrType::INTS) {
             sum_i += cell.get_int();
-          } else if (type == AttrType::FLOATS) {
+          } else if (attr_type == AttrType::FLOATS) {
             sum_f += cell.get_float();
           }
         }
-        if (type == AttrType::INTS) {
+        if (attr_type == AttrType::INTS) {
           result.set_int(sum_i);
-        } else if (type == AttrType::FLOATS) {
+        } else if (attr_type == AttrType::FLOATS) {
           result.set_float(sum_f);
         }
         break;

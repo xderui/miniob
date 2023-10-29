@@ -135,7 +135,7 @@ RC LogicalPlanGenerator::create_plan(
 
   logical_operator.swap(project_oper);
 
-  if (all_fields[0].aggregation() != AggrOp::NONE) {
+  if (all_fields[0].aggregation() != AggrOp::AGGR_NONE) {
     unique_ptr<LogicalOperator> aggregate_oper(new AggregateLogicalOperator(all_fields));
     if (project_oper) {
       aggregate_oper->add_child(std::move(project_oper));

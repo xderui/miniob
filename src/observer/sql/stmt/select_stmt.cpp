@@ -33,7 +33,7 @@ static void wildcard_fields(Table *table, std::vector<Field> &field_metas)
   const TableMeta &table_meta = table->table_meta();
   const int field_num = table_meta.field_num();
   for (int i = table_meta.sys_field_num(); i < field_num; i++) {
-    field_metas.push_back(Field(table, table_meta.field(i), COUNT));
+    field_metas.push_back(Field(table, table_meta.field(i), AggrOp::AGGR_COUNT_ALL));
   }
 }
 
@@ -80,7 +80,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
       return RC::INVALID_ARGUMENT;
     }
     // 普通字段和聚合字段混用
-    if (aggregation == NONE) {
+    if (aggregation == AggrOp::AGGR_NONE) {
       exist_normal = true;
     } else {
       exist_aggr = true;
@@ -92,7 +92,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
 
     if (common::is_blank(table_name) &&
         0 == strcmp(field_name, "*")) {
-      if (aggregation != COUNT) {
+      if (aggregation != AggrOp::AGGR_COUNT) {
         LOG_WARN("invalid aggregation with *. aggr=%s", aggregation);
         return RC::INVALID_ARGUMENT;
       }
@@ -118,7 +118,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
 
         Table *table = iter->second;
         if (0 == strcmp(field_name, "*")) {  // field is *
-          if (aggregation != COUNT) {
+          if (aggregation != AGGR_COUNT) {
             LOG_WARN("invalid aggregation with *. aggr=%s", aggregation);
             return RC::INVALID_ARGUMENT;
           }

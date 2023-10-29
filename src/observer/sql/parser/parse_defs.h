@@ -28,17 +28,19 @@ class Expression;
  */
 
 /**
- * @brief 描述聚合操作
+ * @brief 描述聚合运算符
  * @ingroup SQLParser
+ * 添加前缀以避免重名
 */
 enum AggrOp
 {
-  MAX,    ///< max
-  MIN,    ///< min
-  COUNT,  ///< count
-  AVG,    ///< avg
-  SUM,    ///< sum
-  NONE    ///< none
+  AGGR_MAX,        ///< max
+  AGGR_MIN,        ///< min
+  AGGR_COUNT,      ///< count
+  AGGR_COUNT_ALL,  ///< count(*)
+  AGGR_AVG,        ///< avg
+  AGGR_SUM,        ///< sum
+  AGGR_NONE        ///< no aggr
 };
 
 /**
@@ -51,10 +53,10 @@ enum AggrOp
  */
 struct RelAttrSqlNode
 {
-  std::string relation_name;       ///< relation name (may be NULL) 表名
-  std::string attribute_name;      ///< attribute name              属性名
-  AggrOp      aggregation = NONE;  ///< aggregation (may be empty)  聚合操作
-  bool        valid = true;        ///< valid                       是否合法
+  std::string relation_name;            ///< relation name (may be NULL) 表名
+  std::string attribute_name;           ///< attribute name              属性名
+  AggrOp      aggregation = AGGR_NONE;  ///< aggregation (may be empty)  聚合操作
+  bool        valid = true;             ///< valid                       是否合法
 };
 
 /**
@@ -103,7 +105,6 @@ struct ConditionSqlNode
  * where 条件 conditions，这里表示使用AND串联起来多个条件。正常的SQL语句会有OR，NOT等，
  * 甚至可以包含复杂的表达式。
  */
-
 struct SelectSqlNode
 {
   std::vector<RelAttrSqlNode>     attributes;    ///< attributes in select clause
@@ -112,6 +113,10 @@ struct SelectSqlNode
   std::string                     aggregation;   ///< 聚合操作
 };
 
+/**
+ * @brief 描述一个join语句
+ * @ingroup SQLParser
+*/
 struct JoinSqlNode
 {
   std::vector<std::string>        relations;     ///< 查询的表

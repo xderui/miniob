@@ -113,6 +113,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
   JoinSqlNode *                     join_sql_node;
   Value *                           value;
   enum CompOp                       comp;
+  enum AggrOp                       aggr;
   RelAttrSqlNode *                  rel_attr;
   std::vector<AttrInfoSqlNode> *    attr_infos;
   AttrInfoSqlNode *                 attr_info;
@@ -141,7 +142,9 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <value>               value
 %type <number>              number
 %type <comp>                comp_op
+%type <aggr>                aggr_op
 %type <rel_attr>            rel_attr
+%type <rel_attr>            aggr_attr
 %type <rel_attr>            rel_aggr_attr
 %type <attr_infos>          attr_def_list
 %type <attr_info>           attr_def
@@ -563,46 +566,22 @@ select_attr:
     ;
 
 aggr_attr:
-    MAX LBRACE rel_attr rel_attr_list RBRACE {
+    aggr_op LBRACE rel_attr rel_attr_list RBRACE {
       $$ = $3;
-      $$->aggregation = MAX;
+      $$->aggregation = $1;
       if ($4 != nullptr) {
         $$->valid = false;
         delete $4;
       }
     }
-    | MIN LBRACE rel_attr rel_attr_list RBRACE {
-      $$ = $3;
-      $$->aggregation = MIN;
-      if ($4 != nullptr) {
-        $$->valid = false;
-        delete $4;
-      }
-    }
-    | COUNT LBRACE rel_attr rel_attr_list RBRACE {
-      $$ = $3;
-      $$->aggregation = COUNT;
-      if ($4 != nullptr) {
-        $$->valid = false;
-        delete $4;
-      }
-    }
-    | AVG LBRACE rel_attr rel_attr_list RBRACE {
-      $$ = $3;
-      $$->aggregation = AVG;
-      if ($4 != nullptr) {
-        $$->valid = false;
-        delete $4;
-      }
-    }
-    | SUM LBRACE rel_attr rel_attr_list RBRACE {
-      $$ = $3;
-      $$->aggregation = SUM;
-      if ($4 != nullptr) {
-        $$->valid = false;
-        delete $4;
-      }
-    }
+    ;
+
+aggr_op:
+      MAX { $$ = AGGR_MAX; }
+    | MIN { $$ = AGGR_MIN; }
+    | COUNT { $$ = AGGR_COUNT; }
+    | AVG { $$ = AGGR_AVG; }
+    | SUM { $$ = AGGR_SUM; }
     ;
 
 rel_aggr_attr:
