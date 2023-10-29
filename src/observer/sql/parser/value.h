@@ -121,4 +121,5 @@ private:
 bool is_leap_year(int year);
 void strDate_to_intDate_(const char* strDate, int& intDate);
 void intDate_to_strDate_(const int intDate, std::string& strDate);
-
+std::string floatString_to_String(std::string floatString);
+std::string removeFloatStringEndZero(std::string str);
