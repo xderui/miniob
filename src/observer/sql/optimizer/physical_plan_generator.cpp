@@ -234,6 +234,7 @@ RC PhysicalPlanGenerator::create_plan(AggregateLogicalOperator &aggregate_oper, 
 
   AggregatePhysicalOperator *aggregate_operator = new AggregatePhysicalOperator;
   const vector<Field> &aggregate_fields = aggregate_oper.fields();
+  LOG_TRACE("got %d aggregation fields", aggregate_fields.size());
   for (const Field &field : aggregate_fields) {
     aggregate_operator->add_aggregation(field.aggregation());
   }

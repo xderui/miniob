@@ -73,10 +73,15 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     const char *table_name = relation_attr.relation_name.c_str();
     const char *field_name = relation_attr.attribute_name.c_str();
     const AggrOp aggregation = relation_attr.aggregation;
+    std::string aggr_repr;
+    RC rc = aggr_to_string(aggregation, aggr_repr);
+    if (rc != RC::SUCCESS) {
+      return rc;
+    }
 
-    // 聚合字段中出现多个参数字段
+    // 聚合字段中出现多个参数 或 没有参数
     if (!relation_attr.valid) {
-      LOG_WARN("invalid aggregation attribute with redundant columns");
+      LOG_WARN("invalid aggregation attribute with redundant columns or empty columns");
       return RC::INVALID_ARGUMENT;
     }
     // 普通字段和聚合字段混用
@@ -93,7 +98,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     if (common::is_blank(table_name) &&
         0 == strcmp(field_name, "*")) {
       if (exist_aggr && aggregation != AggrOp::AGGR_COUNT) {
-        LOG_WARN("invalid aggregation with *. aggr=%s", aggregation);
+        LOG_WARN("invalid aggregation with *. aggr=%s", aggr_repr.c_str());
         return RC::INVALID_ARGUMENT;
       }
       for (Table *table : tables) {
@@ -119,7 +124,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
         Table *table = iter->second;
         if (0 == strcmp(field_name, "*")) {  // field is *
           if (exist_aggr && aggregation != AGGR_COUNT) {
-            LOG_WARN("invalid aggregation with *. aggr=%s", aggregation);
+            LOG_WARN("invalid aggregation with *. aggr=%s", aggr_repr.c_str());
             return RC::INVALID_ARGUMENT;
           }
           wildcard_fields(table, query_fields, exist_aggr);

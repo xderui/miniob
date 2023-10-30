@@ -146,6 +146,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <rel_attr>            rel_attr
 %type <rel_attr>            aggr_attr
 %type <rel_attr>            rel_aggr_attr
+%type <rel_attr>            rel_attr_wildcard
 %type <attr_infos>          attr_def_list
 %type <attr_info>           attr_def
 %type <value_list>          value_list
@@ -154,7 +155,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <condition_list>      condition_list
 %type <rel_attr_list>       select_attr
 %type <relation_list>       rel_list
-%type <rel_attr_list>       rel_attr_list
+%type <rel_attr_list>       rel_attr_wildcard_list
 %type <rel_attr_list>       rel_aggr_attr_list
 %type <expression>          expression
 %type <expression_list>     expression_list
@@ -566,13 +567,22 @@ select_attr:
     ;
 
 aggr_attr:
-    aggr_op LBRACE rel_attr rel_attr_list RBRACE {
+    aggr_op LBRACE rel_attr_wildcard rel_attr_wildcard_list RBRACE {
       $$ = $3;
       $$->aggregation = $1;
+      // redundant columns
       if ($4 != nullptr) {
         $$->valid = false;
         delete $4;
       }
+    }
+    | aggr_op LBRACE RBRACE {
+      $$ = new RelAttrSqlNode;
+      $$->relation_name = "";
+      $$->attribute_name = "";
+      $$->aggregation = $1;
+      // empty columns
+      $$->valid = false;
     }
     ;
 
@@ -606,6 +616,32 @@ rel_aggr_attr_list:
     }
     ;
 
+rel_attr_wildcard:
+    '*' {
+      $$ = new RelAttrSqlNode;
+      $$->relation_name = "";
+      $$->attribute_name = "*";
+    }
+    | rel_attr
+    ;
+
+rel_attr_wildcard_list:
+    /* empty */
+    {
+      $$ = nullptr;
+    }
+    | COMMA rel_attr_wildcard rel_attr_wildcard_list {
+      if ($3 != nullptr) {
+        $$ = $3;
+      } else {
+        $$ = new std::vector<RelAttrSqlNode>;
+      }
+
+      $$->emplace_back(*$2);
+      delete $2;
+    }
+    ;
+
 rel_attr:
     ID {
       $$ = new RelAttrSqlNode;
@@ -618,23 +654,6 @@ rel_attr:
       $$->attribute_name = $3;
       free($1);
       free($3);
-    }
-    ;
-
-rel_attr_list:
-    /* empty */
-    {
-      $$ = nullptr;
-    }
-    | COMMA rel_attr rel_attr_list {
-      if ($3 != nullptr) {
-        $$ = $3;
-      } else {
-        $$ = new std::vector<RelAttrSqlNode>;
-      }
-
-      $$->emplace_back(*$2);
-      delete $2;
     }
     ;
 
@@ -654,6 +673,7 @@ rel_list:
       free($2);
     }
     ;
+
 join_list:
     {
       $$ = nullptr;

@@ -18,3 +18,5 @@ See the Mulan PSL v2 for more details. */
 #include "sql/parser/parse_defs.h"
 
 RC parse(const char *st, ParsedSqlResult *sql_result);
+
+RC aggr_to_string(const AggrOp aggr, std::string &repr);

@@ -27,6 +27,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/default/default_handler.h"
 #include "sql/executor/command_executor.h"
 #include "sql/operator/calc_physical_operator.h"
+#include "sql/parser/parse.h"
 
 using namespace std;
 using namespace common;
@@ -70,10 +71,17 @@ RC ExecuteStage::handle_request_with_physical_operator(SQLStageEvent *sql_event)
       bool with_table_name = select_stmt->tables().size() > 1;
 
       for (const Field &field : select_stmt->query_fields()) {
+        const AggrOp aggr = field.aggregation();
+
         if (with_table_name) {
-          schema.append_cell(field.table_name(), field.field_name());
+          schema.append_cell(field.table_name(), field.field_name(), aggr);
         } else {
-          schema.append_cell(field.field_name());
+          schema.append_cell(field.field_name(), aggr);
+        }
+
+        // count(*)
+        if (aggr == AggrOp::AGGR_COUNT_ALL) {
+          break;
         }
       }
     } break;

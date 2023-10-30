@@ -65,11 +65,13 @@ RC SqlResult::close()
 RC SqlResult::next_tuple(Tuple *&tuple)
 {
   RC rc = operator_->next();
+  LOG_TRACE("call next_tuple. rc=%d", rc);
   if (rc != RC::SUCCESS) {
     return rc;
   }
 
   tuple = operator_->current_tuple();
+  LOG_TRACE("current tuple: %s", tuple->to_string().c_str());
   return rc;
 }
 

@@ -31,6 +31,5 @@ public:
 
 private:
   std::vector<AggrOp> aggregations_;
-  std::vector<Tuple*> tuples_;
   ValueListTuple result_tuple_;
 };

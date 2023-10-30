@@ -150,12 +150,12 @@ RC DefaultHandler::open_db(const char *dbname)
 
 RC DefaultHandler::close_db(const char *dbname)
 {
-  return RC::UNIMPLENMENT;
+  return RC::UNIMPLEMENT;
 }
 
 RC DefaultHandler::execute(const char *sql)
 {
-  return RC::UNIMPLENMENT;
+  return RC::UNIMPLEMENT;
 }
 
 RC DefaultHandler::create_table(
@@ -170,7 +170,7 @@ RC DefaultHandler::create_table(
 
 RC DefaultHandler::drop_table(const char *dbname, const char *relation_name)
 {
-  return RC::UNIMPLENMENT;
+  return RC::UNIMPLEMENT;
 }
 
 Db *DefaultHandler::find_db(const char *dbname) const

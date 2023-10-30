@@ -89,7 +89,7 @@ RC CommandExecutor::execute(SQLStageEvent *sql_event)
 
     default: {
       LOG_ERROR("unknown command: %d", static_cast<int>(stmt->type()));
-      return RC::UNIMPLENMENT;
+      return RC::UNIMPLEMENT;
     }
   }
 
