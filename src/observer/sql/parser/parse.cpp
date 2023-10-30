@@ -69,6 +69,9 @@ RC aggr_to_string(const AggrOp aggr, std::string &repr) {
     case AggrOp::AGGR_SUM:
       repr = "SUM";
       break;
+    case AggrOp::AGGR_NONE:
+      repr = "";
+      break;
     default:
       LOG_WARN("unimplemented aggregation");
       return RC::UNIMPLEMENT;
