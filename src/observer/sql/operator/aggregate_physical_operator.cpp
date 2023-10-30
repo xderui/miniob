@@ -39,19 +39,11 @@ RC AggregatePhysicalOperator::next()
     for (int cell_idx = 0; cell_idx < aggregations_.size(); cell_idx++) {
       const AggrOp aggregation = aggregations_[cell_idx];
 
-      // count(*) only have one
-      if (aggregation == AggrOp::AGGR_COUNT_ALL) {
-        if (count == 0) {
-          result_cells.push_back(Value(0));
-        }
-        result_cells[0].set_int(result_cells[0].get_int() + 1);
-        break;
-      }
-
       Value cell;
       AttrType attr_type = AttrType::INTS;
       switch (aggregation) {
         case AggrOp::AGGR_COUNT:
+        case AggrOp::AGGR_COUNT_ALL:
           if (count == 0) {
             result_cells.push_back(Value(0));
             LOG_TRACE("init count. count=0");
@@ -60,24 +52,24 @@ RC AggregatePhysicalOperator::next()
           LOG_TRACE("update count. count=%s", result_cells[cell_idx].to_string().c_str());
           break;
         case AggrOp::AGGR_MAX:
-            rc = tuple->cell_at(cell_idx, cell);
-            if (count == 0) {
-              result_cells.push_back(cell);
-              LOG_TRACE("init max. max=%s", result_cells[cell_idx].to_string().c_str());
-            } else if (cell.compare(result_cells[cell_idx]) > 0) {
-              result_cells[cell_idx] = cell;
-              LOG_TRACE("update max. max=%s", result_cells[cell_idx].to_string().c_str());
-            }
+          rc = tuple->cell_at(cell_idx, cell);
+          if (count == 0) {
+            result_cells.push_back(cell);
+            LOG_TRACE("init max. max=%s", result_cells[cell_idx].to_string().c_str());
+          } else if (cell.compare(result_cells[cell_idx]) > 0) {
+            result_cells[cell_idx] = cell;
+            LOG_TRACE("update max. max=%s", result_cells[cell_idx].to_string().c_str());
+          }
           break;
         case AggrOp::AGGR_MIN:
-            rc = tuple->cell_at(cell_idx, cell);
-            if (count == 0) {
-              result_cells.push_back(cell);
-              LOG_TRACE("init min. min=%s", result_cells[cell_idx].to_string().c_str());
-            } else if (cell.compare(result_cells[cell_idx]) < 0) {
-              result_cells[cell_idx] = cell;
-              LOG_TRACE("update min. min=%s", result_cells[cell_idx].to_string().c_str());
-            }
+          rc = tuple->cell_at(cell_idx, cell);
+          if (count == 0) {
+            result_cells.push_back(cell);
+            LOG_TRACE("init min. min=%s", result_cells[cell_idx].to_string().c_str());
+          } else if (cell.compare(result_cells[cell_idx]) < 0) {
+            result_cells[cell_idx] = cell;
+            LOG_TRACE("update min. min=%s", result_cells[cell_idx].to_string().c_str());
+          }
           break;
         case AggrOp::AGGR_SUM:
         case AggrOp::AGGR_AVG:

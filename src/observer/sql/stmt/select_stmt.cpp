@@ -28,12 +28,17 @@ SelectStmt::~SelectStmt()
   }
 }
 
-static void wildcard_fields(Table *table, std::vector<Field> &field_metas, bool exist_aggr = false)
+static void wildcard_fields(Table *table, std::vector<Field> &field_metas, const AggrOp aggr)
 {
   const TableMeta &table_meta = table->table_meta();
   const int field_num = table_meta.field_num();
   for (int i = table_meta.sys_field_num(); i < field_num; i++) {
-    field_metas.push_back(Field(table, table_meta.field(i), exist_aggr ? AggrOp::AGGR_COUNT_ALL : AggrOp::AGGR_NONE));
+    if (aggr == AggrOp::AGGR_COUNT) {
+      field_metas.push_back(Field(table, table_meta.field(i), AggrOp::AGGR_COUNT_ALL));
+      break;
+    } else {
+      field_metas.push_back(Field(table, table_meta.field(i), AggrOp::AGGR_NONE));
+    }
   }
 }
 
@@ -102,7 +107,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
         return RC::INVALID_ARGUMENT;
       }
       for (Table *table : tables) {
-        wildcard_fields(table, query_fields, exist_aggr);
+        wildcard_fields(table, query_fields, aggregation);
       }
 
     } else if (!common::is_blank(table_name)) {
@@ -112,7 +117,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
           return RC::SCHEMA_FIELD_MISSING;
         }
         for (Table *table : tables) {
-          wildcard_fields(table, query_fields, exist_aggr);
+          wildcard_fields(table, query_fields, aggregation);
         }
       } else {
         auto iter = table_map.find(table_name);
@@ -127,7 +132,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
             LOG_WARN("invalid aggregation with *. aggr=%s", aggr_repr.c_str());
             return RC::INVALID_ARGUMENT;
           }
-          wildcard_fields(table, query_fields, exist_aggr);
+          wildcard_fields(table, query_fields, aggregation);
         } else {
           const FieldMeta *field_meta = table->table_meta().field(field_name);
           if (nullptr == field_meta) {
