@@ -64,6 +64,9 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         CALC
         SELECT
         DESC
+        ASC
+        ORDER
+        BY
         SHOW
         SYNC
         INSERT
@@ -108,6 +111,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
   JoinSqlNode *                     join_sql_node;
   Value *                           value;
   enum CompOp                       comp;
+  enum OrderOp                      orderOp;
   RelAttrSqlNode *                  rel_attr;
   std::vector<AttrInfoSqlNode> *    attr_infos;
   AttrInfoSqlNode *                 attr_info;
@@ -116,6 +120,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
   std::vector<Value> *              value_list;
   std::vector<ConditionSqlNode> *   condition_list;
   std::vector<RelAttrSqlNode> *     rel_attr_list;
+  std::vector<std::pair<RelAttrSqlNode, OrderOp>>* order_by_list;
   std::vector<std::string> *        relation_list;
   char *                            string;
   int                               number;
@@ -136,6 +141,9 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <value>               value
 %type <number>              number
 %type <comp>                comp_op
+%type <orderOp>             order_op
+%type <order_by_list>       order_by_list
+%type <order_by_list>       order_by
 %type <rel_attr>            rel_attr
 %type <attr_infos>          attr_def_list
 %type <attr_info>           attr_def
@@ -430,7 +438,7 @@ update_stmt:      /*  update 语句的语法解析树*/
     }
     ;
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT select_attr FROM ID rel_list join_list where
+    SELECT select_attr FROM ID rel_list join_list where order_by
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -455,30 +463,12 @@ select_stmt:        /*  select 语句的语法解析树*/
         $$->selection.conditions.insert($$->selection.conditions.end(), $6->conditions.begin(), $6->conditions.end());
         delete $6;
       }
-    }
-    // | SELECT select_attr FROM ID rel_list JOIN ID ON condition where
-    // {
-    //   $$ = new ParsedSqlNode(SCF_SELECT);
-    //   if ($2 != nullptr) {
-    //     $$->selection.attributes.swap(*$2);
-    //     delete $2;
-    //   }
-    //   if ($5 != nullptr) {
-    //     $$->selection.relations.swap(*$5);
-    //     delete $5;
-    //   }
-    //   $$->selection.relations.push_back($4);
-    //   $$->selection.relations.push_back($7);
-    //   free($4);
-    //   free($7);
 
-    //   if($10 != nullptr) {
-    //     $$->selection.conditions.swap(*$10);
-    //     delete $10;
-    //   }
-    //   $$->selection.conditions.emplace_back(*$9);
-    //   delete $9;
-    // }
+      if ($8 != nullptr) {
+        $$->selection.order_rules.swap(*$8);
+        delete $8;
+      }
+    }
     ;
 calc_stmt:
     CALC expression_list
@@ -607,7 +597,8 @@ join_list:
     | INNER join_list {
       $$ = $2;
     }
-    | JOIN ID ON condition_list join_list {
+    | JOIN ID ON condition_list join_list 
+    {
       $$ = new JoinSqlNode();
 
       if ($4 != nullptr) {
@@ -701,6 +692,38 @@ condition:
     }
     ;
 
+order_by:
+  {
+    $$ = nullptr;
+  }
+  | ORDER BY rel_attr order_op order_by_list
+  {
+    $$ = new std::vector<std::pair<RelAttrSqlNode, OrderOp>>;
+    $$->emplace_back(std::make_pair(*$3, $4));
+    delete $3;
+    if ($5 != nullptr) {
+      $$->insert($$->end(), $5->begin(), $5->end());
+    }
+  }
+  ;
+
+order_by_list:
+  {
+    $$ = nullptr;
+  }
+  | COMMA rel_attr order_op order_by_list
+  {
+    $$ = new std::vector<std::pair<RelAttrSqlNode, OrderOp>>;
+    $$->emplace_back(std::make_pair(*$2, $3));
+    delete $2;
+
+    if ($4 != nullptr) {
+      $$->insert($$->end(), $4->begin(), $4->end());
+    }
+
+  }
+  ;
+
 comp_op:
       EQ { $$ = EQUAL_TO; }
     | LT { $$ = LESS_THAN; }
@@ -709,7 +732,11 @@ comp_op:
     | GE { $$ = GREAT_EQUAL; }
     | NE { $$ = NOT_EQUAL; }
     ;
-
+order_op:
+      DESC { $$ = ORDER_DESC; }
+    | ASC  { $$ = ORDER_ASC;  }
+    |      { $$ = ORDER_DEFAULT; }
+    ;
 load_data_stmt:
     LOAD DATA INFILE SSS INTO TABLE ID 
     {

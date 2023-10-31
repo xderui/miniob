@@ -59,48 +59,51 @@ extern int yydebug;
     CALC = 265,
     SELECT = 266,
     DESC = 267,
-    SHOW = 268,
-    SYNC = 269,
-    INSERT = 270,
-    DELETE = 271,
-    UPDATE = 272,
-    LBRACE = 273,
-    RBRACE = 274,
-    COMMA = 275,
-    TRX_BEGIN = 276,
-    TRX_COMMIT = 277,
-    TRX_ROLLBACK = 278,
-    INT_T = 279,
-    STRING_T = 280,
-    FLOAT_T = 281,
-    DATE_T = 282,
-    HELP = 283,
-    EXIT = 284,
-    DOT = 285,
-    INTO = 286,
-    VALUES = 287,
-    FROM = 288,
-    WHERE = 289,
-    AND = 290,
-    SET = 291,
-    ON = 292,
-    LOAD = 293,
-    DATA = 294,
-    INFILE = 295,
-    EXPLAIN = 296,
-    EQ = 297,
-    LT = 298,
-    GT = 299,
-    LE = 300,
-    GE = 301,
-    NE = 302,
-    NUMBER = 303,
-    FLOAT = 304,
-    ID = 305,
-    DATE_STR = 306,
-    SSS = 307,
-    JOIN = 308,
-    UMINUS = 309
+    ASC = 268,
+    ORDER = 269,
+    BY = 270,
+    SHOW = 271,
+    SYNC = 272,
+    INSERT = 273,
+    DELETE = 274,
+    UPDATE = 275,
+    LBRACE = 276,
+    RBRACE = 277,
+    COMMA = 278,
+    TRX_BEGIN = 279,
+    TRX_COMMIT = 280,
+    TRX_ROLLBACK = 281,
+    INT_T = 282,
+    STRING_T = 283,
+    FLOAT_T = 284,
+    DATE_T = 285,
+    HELP = 286,
+    EXIT = 287,
+    DOT = 288,
+    INTO = 289,
+    VALUES = 290,
+    FROM = 291,
+    WHERE = 292,
+    AND = 293,
+    SET = 294,
+    ON = 295,
+    LOAD = 296,
+    DATA = 297,
+    INFILE = 298,
+    EXPLAIN = 299,
+    EQ = 300,
+    LT = 301,
+    GT = 302,
+    LE = 303,
+    GE = 304,
+    NE = 305,
+    NUMBER = 306,
+    FLOAT = 307,
+    ID = 308,
+    DATE_STR = 309,
+    SSS = 310,
+    JOIN = 311,
+    UMINUS = 312
   };
 #endif
 
@@ -108,13 +111,14 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 105 "yacc_sql.y"
+#line 108 "yacc_sql.y"
 
   ParsedSqlNode *                   sql_node;
   ConditionSqlNode *                condition;
   JoinSqlNode *                     join_sql_node;
   Value *                           value;
   enum CompOp                       comp;
+  enum OrderOp                      orderOp;
   RelAttrSqlNode *                  rel_attr;
   std::vector<AttrInfoSqlNode> *    attr_infos;
   AttrInfoSqlNode *                 attr_info;
@@ -123,12 +127,13 @@ union YYSTYPE
   std::vector<Value> *              value_list;
   std::vector<ConditionSqlNode> *   condition_list;
   std::vector<RelAttrSqlNode> *     rel_attr_list;
+  std::vector<std::pair<RelAttrSqlNode, OrderOp>>* order_by_list;
   std::vector<std::string> *        relation_list;
   char *                            string;
   int                               number;
   float                             floats;
 
-#line 132 "yacc_sql.hpp"
+#line 137 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;

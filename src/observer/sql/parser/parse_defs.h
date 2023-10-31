@@ -56,6 +56,17 @@ enum CompOp
 };
 
 /**
+ * @brief 描述排序规则，升序 | 降序
+*/
+enum OrderOp
+{
+  ORDER_ASC,
+  ORDER_DESC,
+  ORDER_DEFAULT,
+  ORDER_NO_OP,
+};
+
+/**
  * @brief 表示一个条件比较
  * @ingroup SQLParser
  * @details 条件比较就是SQL查询中的 where a>b 这种。
@@ -92,6 +103,7 @@ struct SelectSqlNode
   std::vector<RelAttrSqlNode>     attributes;    ///< attributes in select clause
   std::vector<std::string>        relations;     ///< 查询的表
   std::vector<ConditionSqlNode>   conditions;    ///< 查询条件，使用AND串联起来多个条件
+  std::vector<std::pair<RelAttrSqlNode, OrderOp>> order_rules;  ///< 排序规则
 };
 
 struct JoinSqlNode
