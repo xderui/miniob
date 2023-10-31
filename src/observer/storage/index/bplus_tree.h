@@ -98,9 +98,10 @@ private:
 class KeyComparator 
 {
 public:
-  void init(AttrType type, int length)
+  void init(AttrType type, int length, bool unique)
   {
     attr_comparator_.init(type, length);
+    unique_ = unique;
   }
 
   const AttrComparator &attr_comparator() const
@@ -110,8 +111,9 @@ public:
 
   int operator()(const char *v1, const char *v2) const
   {
+    std::cout<<unique_<<std::endl;
     int result = attr_comparator_(v1, v2);
-    if (result != 0) {
+    if (unique_ || result != 0) {
       return result;
     }
 
@@ -122,6 +124,7 @@ public:
 
 private:
   AttrComparator attr_comparator_;
+  bool unique_;
 };
 
 /**
@@ -226,6 +229,7 @@ struct IndexFileHeader
   int32_t attr_length;        ///< 键值的长度
   int32_t key_length;         ///< attr length + sizeof(RID)
   AttrType attr_type;         ///< 键值的类型
+  bool unique;
 
   const std::string to_string()
   {
@@ -471,6 +475,7 @@ public:
   RC create(const char *file_name, 
             AttrType attr_type, 
             int attr_length, 
+            bool unique,
             int internal_max_size = -1, 
             int leaf_max_size = -1);
 
