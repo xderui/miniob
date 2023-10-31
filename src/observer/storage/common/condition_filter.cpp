@@ -45,7 +45,7 @@ RC DefaultConditionFilter::init(const ConDesc &left, const ConDesc &right, AttrT
     return RC::INVALID_ARGUMENT;
   }
 
-  if (comp_op < EQUAL_TO || comp_op >= NO_OP) {
+  if ((comp_op < EQUAL_TO || comp_op >= NO_OP) && comp_op != LIKE && comp_op != NOT_LIKE) {
     LOG_ERROR("Invalid condition with unsupported compare operation: %d", comp_op);
     return RC::INVALID_ARGUMENT;
   }
