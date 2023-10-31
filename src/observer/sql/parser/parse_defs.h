@@ -56,7 +56,7 @@ enum CompOp
 };
 
 /**
- * @brief 描述排序规则，升序 | 降序
+ * @brief 描述排序规则，升序 | 降序 | 默认
 */
 enum OrderOp
 {
