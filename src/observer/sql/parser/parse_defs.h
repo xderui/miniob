@@ -71,7 +71,9 @@ enum CompOp
   LESS_THAN,    ///< "<"
   GREAT_EQUAL,  ///< ">="
   GREAT_THAN,   ///< ">"
-  NO_OP
+  NO_OP,
+  LIKE,         /// like
+  NOT_LIKE
 };
 
 /**
