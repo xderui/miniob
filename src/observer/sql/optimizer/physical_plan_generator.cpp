@@ -103,6 +103,7 @@ RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, u
 
   Index *index = nullptr;
   ValueExpr *value_expr = nullptr;
+  std::vector<const char *> fields;
   for (auto &expr : predicates) {
     if (expr->type() == ExprType::COMPARISON) {
       auto comparison_expr = static_cast<ComparisonExpr *>(expr.get());
@@ -134,14 +135,19 @@ RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, u
       }
 
       const Field &field = field_expr->field();
-      index = table->find_index_by_field(field.field_name());
+      fields.emplace_back(field.field_name());
+      // index = table->find_index_by_fields();
+      
+      // index = table->find_index_by_field(field.field_name());
       if (nullptr != index) {
         break;
       }
     }
   }
 
-  if (index != nullptr) {
+  index = table->find_index_by_fields(fields);
+
+  if (index != nullptr) {    // 通过索引获得表
     ASSERT(value_expr != nullptr, "got an index but value expr is null ?");
 
     const Value &value = value_expr->get_value();

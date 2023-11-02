@@ -29,6 +29,8 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/comparator.h"
 #include "common/log/log.h"
 
+#define MAX_ATTR_NUM 8
+
 /**
  * @brief B+树的实现
  * @defgroup BPlusTree
@@ -52,42 +54,50 @@ enum class BplusTreeOperationType
 class AttrComparator 
 {
 public:
-  void init(AttrType type, int length)
+  void init(std::vector<AttrType>  types, std::vector<int>  lengths)
   {
-    attr_type_ = type;
-    attr_length_ = length;
+    attr_types_ = types;
+    attr_lengths_ = lengths;
   }
 
   int attr_length() const
   {
-    return attr_length_;
+    int attr_length = 0;
+    for (int len: attr_lengths_){
+      attr_length += len;
+    }
+    return attr_length;
   }
 
   int operator()(const char *v1, const char *v2) const
   {
-    switch (attr_type_) {
-      case INTS: {
-        return common::compare_int((void *)v1, (void *)v2);
-      } break;
-      case FLOATS: {
-        return common::compare_float((void *)v1, (void *)v2);
+    int offset = 0;
+    for (int i=0;i<attr_lengths_.size();++i){
+      switch (attr_types_[i]) {
+        case INTS: {
+          return common::compare_int((void *)(v1+offset), (void *)(v2+offset));
+        } break;
+        case FLOATS: {
+          return common::compare_float((void *)(v1+offset), (void *)(v2+offset));
+        }
+        case CHARS: {
+          return common::compare_string((void *)(v1+offset), attr_lengths_[i], (void *)(v2+offset), attr_lengths_[i]);
+        }
+        case DATES: {
+          return common::compare_date((void*) (v1+offset), (void*) (v2+offset));
+        }
+        default: {
+          ASSERT(false, "unknown attr type. %d", attr_type_);
+          return 0;
+        }
       }
-      case CHARS: {
-        return common::compare_string((void *)v1, attr_length_, (void *)v2, attr_length_);
-      }
-      case DATES: {
-        return common::compare_date((void*) v1, (void*) v2);
-      }
-      default: {
-        ASSERT(false, "unknown attr type. %d", attr_type_);
-        return 0;
-      }
+      offset += attr_lengths_[i];
     }
   }
 
 private:
-  AttrType attr_type_;
-  int attr_length_;
+  std::vector<AttrType> attr_types_;
+  std::vector<int> attr_lengths_;
 };
 
 /**
@@ -98,9 +108,9 @@ private:
 class KeyComparator 
 {
 public:
-  void init(AttrType type, int length, bool unique)
+  void init(std::vector<AttrType> types, std::vector<int> lengths, bool unique)
   {
-    attr_comparator_.init(type, length);
+    attr_comparator_.init(types, lengths);
     unique_ = unique;
   }
 
@@ -111,7 +121,6 @@ public:
 
   int operator()(const char *v1, const char *v2) const
   {
-    std::cout<<unique_<<std::endl;
     int result = attr_comparator_(v1, v2);
     if (unique_ || result != 0) {
       return result;
@@ -226,21 +235,29 @@ struct IndexFileHeader
   PageNum root_page;          ///< 根节点在磁盘中的页号
   int32_t internal_max_size;  ///< 内部节点最大的键值对数
   int32_t leaf_max_size;      ///< 叶子节点最大的键值对数
-  int32_t attr_length;        ///< 键值的长度
+  int32_t attr_length;
+  int32_t attr_lengths[MAX_ATTR_NUM];        ///< 键值的长度
   int32_t key_length;         ///< attr length + sizeof(RID)
-  AttrType attr_type;         ///< 键值的类型
+  AttrType attr_type;
+  AttrType attr_types[MAX_ATTR_NUM];         ///< 键值的类型
+  int32_t attr_num;
   bool unique;
 
   const std::string to_string()
   {
     std::stringstream ss;
 
-    ss << "attr_length:" << attr_length << ","
-       << "key_length:" << key_length << ","
-       << "attr_type:" << attr_type << ","
+    ss << "key_length:" << key_length << ","
        << "root_page:" << root_page << ","
        << "internal_max_size:" << internal_max_size << ","
        << "leaf_max_size:" << leaf_max_size << ";";
+
+    // 
+
+    for (int i=0; i<attr_num; ++i){
+      ss << ",attr_types[" << i << "]:" << attr_types[i] << ",attr_lengths[" << i << "]:" << attr_lengths[i];
+    }
+    ss << ";";
 
     return ss.str();
   }
@@ -473,8 +490,7 @@ public:
    * attrType描述被索引属性的类型，attrLength描述被索引属性的长度
    */
   RC create(const char *file_name, 
-            AttrType attr_type, 
-            int attr_length, 
+            const std::vector<FieldMeta> &field_metas,
             bool unique,
             int internal_max_size = -1, 
             int leaf_max_size = -1);
@@ -498,6 +514,7 @@ public:
    * @note 这里假设user_key的内存大小与attr_length 一致
    */
   RC insert_entry(const char *user_key, const RID *rid);
+  RC insert_entry(const char *user_key, std::vector<FieldMeta> field_metas, const RID *rid);
 
   /**
    * 从IndexHandle句柄对应的索引中删除一个值为（*pData，rid）的索引项
@@ -505,6 +522,7 @@ public:
    * @note 这里假设user_key的内存大小与attr_length 一致
    */
   RC delete_entry(const char *user_key, const RID *rid);
+  RC delete_entry(const char *user_key, std::vector<FieldMeta> field_metas, const RID *rid);
 
   bool is_empty() const;
 
@@ -575,6 +593,7 @@ protected:
 
 private:
   common::MemPoolItem::unique_ptr make_key(const char *user_key, const RID &rid);
+  common::MemPoolItem::unique_ptr make_key(const char *user_key, std::vector<FieldMeta> field_metas, const RID &rid);
   void free_key(char *key);
 
 protected:

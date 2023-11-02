@@ -91,7 +91,7 @@ public:
   RC recover_insert_record(Record &record);
 
   // TODO refactor
-  RC create_index(Trx *trx, const FieldMeta *field_meta, const char *index_name, bool unique);
+  RC create_index(Trx *trx, std::vector<FieldMeta> field_metas, const char *index_name, bool unique);
 
   RC get_record_scanner(RecordFileScanner &scanner, Trx *trx, bool readonly);
 
@@ -117,7 +117,8 @@ private:
 
 public:
   Index *find_index(const char *index_name) const;
-  Index *find_index_by_field(const char *field_name) const;
+  // Index *find_index_by_field(const char *field_name) const;
+  Index *find_index_by_fields(std::vector<const char *> fields) const;
 
 private:
   std::string base_dir_;

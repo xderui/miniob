@@ -124,7 +124,8 @@ const FieldMeta *TableMeta::field(const char *name) const
   if (nullptr == name) {
     return nullptr;
   }
-  for (const FieldMeta &field : fields_) {  // 这一行存在问题
+  for (const FieldMeta &field : fields_) { 
+    std::cout<< field.name() << " "<< name<< std::endl;
     if (0 == strcmp(field.name(), name)) {
       return &field;
     }
@@ -165,11 +166,33 @@ const IndexMeta *TableMeta::index(const char *name) const
   return nullptr;
 }
 
-const IndexMeta *TableMeta::find_index_by_field(const char *field) const
+// const IndexMeta *TableMeta::find_index_by_field(const char *field) const   
+// {
+//   for (const IndexMeta &index : indexes_) {
+//     if (0 == strcmp(index.field(), field)) {
+//       return &index;
+//     }
+//   }
+//   return nullptr;
+// }
+
+const IndexMeta *TableMeta::find_index_by_fields(std::vector<const char *> fields) const   // 修改成多个field
 {
+
   for (const IndexMeta &index : indexes_) {
-    if (0 == strcmp(index.field(), field)) {
-      return &index;
+    if (index.field_num() == fields.size()){
+      std::vector<const char *> index_fields = index.fields();
+      int field_num = fields.size();
+      bool same_flag = true;
+      for (int i=0;i<field_num;++i){
+        if (0 != strcmp(index_fields[i], fields[i])){
+          same_flag = false;
+          break;
+        }
+      }
+      if (same_flag){
+        return &index;
+      }
     }
   }
   return nullptr;
@@ -289,9 +312,10 @@ int TableMeta::deserialize(std::istream &is)
     }
     const int index_num = indexes_value.size();
     std::vector<IndexMeta> indexes(index_num);
+    std::cout<<index_num<<std::endl;
+    
     for (int i = 0; i < index_num; i++) {
       IndexMeta &index = indexes[i];
-
       const Json::Value &index_value = indexes_value[i];
       rc = IndexMeta::from_json(*this, index_value, index);
       if (rc != RC::SUCCESS) {

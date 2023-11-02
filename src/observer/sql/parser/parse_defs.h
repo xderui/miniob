@@ -213,7 +213,8 @@ struct CreateIndexSqlNode
 {
   std::string index_name;      ///< Index name
   std::string relation_name;   ///< Relation name
-  std::string attribute_name;  ///< Attribute name
+  // std::string attribute_name;  ///< Attribute name
+  std::vector<std::string> attribute_names;
   bool unique;
 };
 
@@ -226,6 +227,7 @@ struct DropIndexSqlNode
   std::string index_name;     ///< Index name
   std::string relation_name;  ///< Relation name
 };
+
 
 /**
  * @brief 描述一个desc table语句
