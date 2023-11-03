@@ -127,6 +127,8 @@ DATA                                    RETURN_TOKEN(DATA);
 INFILE                                  RETURN_TOKEN(INFILE);
 EXPLAIN                                 RETURN_TOKEN(EXPLAIN);
 NOT                                     RETURN_TOKEN(NOT);
+IS                                      RETURN_TOKEN(IS);
+NULL                                    RETURN_TOKEN(TNULL);    
 LIKE                                    RETURN_TOKEN(LKE);
 {ID}                                    yylval->string=strdup(yytext); RETURN_TOKEN(ID);
 "("                                     RETURN_TOKEN(LBRACE);

@@ -71,6 +71,8 @@ enum CompOp
   LESS_THAN,    ///< "<"
   GREAT_EQUAL,  ///< ">="
   GREAT_THAN,   ///< ">"
+  OP_ISNULL,
+  OP_ISNOTNULL,
   LIKE,
   NOT_LIKE,
   NO_OP
@@ -181,6 +183,7 @@ struct AttrInfoSqlNode
   AttrType    type;       ///< Type of attribute
   std::string name;       ///< Attribute name
   size_t      length;     ///< Length of attribute
+  bool        isnull;     ///< 是否允许为NULL
 };
 
 /**
@@ -358,3 +361,14 @@ public:
 private:
   std::vector<std::unique_ptr<ParsedSqlNode>> sql_nodes_;  ///< 这里记录SQL命令。虽然看起来支持多个，但是当前仅处理一个
 };
+
+
+
+
+
+// null bitmap的字段名
+// 语法分析匹配到null时，保存的值。（其实可以随意设置，因为bitmap的存在，确定了该位置的值为null
+const std::string NULL_FIELD_NAME = "______";
+const int         NULL_VALUE = -999;
+const AttrType    NULL_TYPE = INTS;
+const int         NULL_FLAG = 1;

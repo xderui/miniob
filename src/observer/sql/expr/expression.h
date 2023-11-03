@@ -300,3 +300,11 @@ private:
   std::unique_ptr<Expression> left_;
   std::unique_ptr<Expression> right_;
 };
+
+
+
+
+
+bool fn_isNULL(Value left, Value right);
+bool fn_isNotNULL(Value left, Value right);
+

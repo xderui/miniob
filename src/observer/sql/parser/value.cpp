@@ -19,7 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/comparator.h"
 #include "common/lang/string.h"
 
-const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "floats", "dates", "booleans"};
+const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "floats", "dates", "booleans", "nulls"};
 
 const char *attr_type_to_string(AttrType type)
 {
@@ -64,7 +64,10 @@ Value::Value(const char *date, int len, int flag)
   strDate_to_intDate_(date, intDate);
   set_date(intDate);
 }
-
+Value::Value(int val, int flag)
+{
+  set_null(val);
+}
 void Value::set_data(char *data, int length)
 {
   switch (attr_type_) {
@@ -82,6 +85,9 @@ void Value::set_data(char *data, int length)
     case BOOLEANS: {
       num_value_.bool_value_ = *(int *)data != 0;
       length_ = length;
+    } break;
+    case NULLS: {
+      num_value_.null_value_ = *(int* )data;
     } break;
     case DATES: {
       num_value_.date_value_ = *(int *)data;
@@ -102,6 +108,12 @@ void Value::set_date(int val)
 {
   attr_type_ = DATES;
   num_value_.date_value_ = val;
+  length_ = sizeof(val);
+}
+void Value::set_null(int val)
+{
+  attr_type_ = NULLS;
+  num_value_.int_value_ = val;
   length_ = sizeof(val);
 }
 void Value::set_float(float val)
@@ -145,8 +157,10 @@ void Value::set_value(const Value &value)
     } break;
     case DATES: {
       set_date(value.get_date());
-      break;
-    }
+    } break;
+    case NULLS: {
+      set_null(value.get_null());
+    } break;
     case UNDEFINED: {
       ASSERT(false, "got an invalid value type");
     } break;
@@ -180,6 +194,9 @@ std::string Value::to_string() const
     } break;
     case CHARS: {
       os << str_value_;
+    } break;
+    case NULLS: {
+      os << "null";
     } break;
     case DATES: {
       std::string strDate = "";
@@ -216,6 +233,9 @@ int Value::compare(const Value &other) const
       case DATES: {
         return common::compare_date((void *)&this->num_value_.date_value_, (void *)&other.num_value_.date_value_);
       } break;
+      case NULLS: {
+        return -1;
+      } break;
       default: {
         LOG_WARN("unsupported type: %d", this->attr_type_);
       }
@@ -240,7 +260,24 @@ int Value::compare(const Value &other) const
     std::string other_data = removeFloatStringEndZero(std::to_string(other.num_value_.float_value_));
     std::string this_data = removeFloatStringEndZero(floatString_to_String(this->str_value_));
     return common::compare_string((void *)(this_data.c_str()), this_data.length(), (void *)(other_data.c_str()), other_data.length());
-  }
+  } else if (this->attr_type_ == INTS && other.attr_type_ == NULLS) {
+    return -1;
+  } else if (this->attr_type_ == FLOATS && other.attr_type_ == NULLS) {
+    return -1;
+  } else if (this->attr_type_ == CHARS && other.attr_type_ == NULLS) {
+    return -1;
+  } else if (this->attr_type_ == DATES && other.attr_type_ == NULLS) {
+    return -1;
+  } else if (this->attr_type_ == NULLS && other.attr_type_ == INTS) {
+    std::cout << "AAAA" << std::endl;
+    return -1;
+  } else if (this->attr_type_ == NULLS && other.attr_type_ == FLOATS) {
+    return -1;
+  } else if (this->attr_type_ == NULLS && other.attr_type_ == CHARS) {
+    return -1;
+  } else if (this->attr_type_ == NULLS && other.attr_type_ == DATES) {
+    return -1;
+  } 
   LOG_WARN("not supported");
   return -1;  // TODO return rc?
 }
@@ -268,6 +305,9 @@ int Value::get_int() const
     case DATES: {
       return (int)(num_value_.date_value_);
     }
+    case NULLS: {
+      return (int)(num_value_.null_value_);
+    }
     default: {
       LOG_WARN("unknown data type. type=%d", attr_type_);
       return 0;
@@ -275,6 +315,36 @@ int Value::get_int() const
   }
   return 0;
 }
+
+int Value::get_null() const
+{
+  switch (attr_type_) {
+    case CHARS: {
+      std::cout << "Value::get_null() ERROR" << std::endl;
+    }
+    case INTS: {
+      std::cout << "Value::get_null() ERROR" << std::endl;
+    }
+    case FLOATS: {
+      std::cout << "Value::get_null() ERROR" << std::endl;
+    }
+    case BOOLEANS: {
+      std::cout << "Value::get_null() ERROR" << std::endl;
+    }
+    case DATES: {
+      std::cout << "Value::get_null() ERROR" << std::endl;
+    }
+    case NULLS: {
+      return num_value_.null_value_;
+    }
+    default: {
+      LOG_WARN("unknown data type. type=%d", attr_type_);
+      return 0;
+    }
+  }
+  return 0;
+}
+
 
 int Value::get_date() const
 {
@@ -293,6 +363,9 @@ int Value::get_date() const
     }
     case DATES: {
       return num_value_.int_value_;
+    }
+    case NULLS: {
+      return num_value_.null_value_;
     }
     default: {
       LOG_WARN("unknown data type. type=%d", attr_type_);
@@ -324,6 +397,9 @@ float Value::get_float() const
     } break;
     case DATES: {
       std::cout << "failed to convert date to float.\n" << std::endl;
+    } break;
+    case NULLS: {
+      std::cout << "failed to convert null to float.\n" << std::endl;
     } break;
     default: {
       LOG_WARN("unknown data type. type=%d", attr_type_);
@@ -371,7 +447,10 @@ bool Value::get_boolean() const
     } break;
     case DATES: {
       std::cout << "failed to convert date to boolean.\n" << std::endl;
-    }
+    } break;
+    case NULLS: {
+      std::cout << "failed to convert null to boolean.\n" << std::endl;
+    } break;
     default: {
       LOG_WARN("unknown data type. type=%d", attr_type_);
       return false;

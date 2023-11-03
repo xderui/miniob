@@ -107,6 +107,8 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         LKE
         NOT
         NE
+        IS
+        TNULL
         
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
@@ -129,6 +131,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
   char *                            string;
   int                               number;
   float                             floats;
+  bool                              boolean;
 }
 
 %token <number> NUMBER
@@ -140,6 +143,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 //非终结符
 
 /** type 定义了各种解析后的结果输出的是什么类型。类型对应了 union 中的定义的成员变量名称 **/
+%type <boolean>             isnull
 %type <number>              type
 %type <condition>           condition
 %type <value>               value
@@ -332,6 +336,18 @@ create_table_stmt:    /*create table 语句的语法解析树*/
       create_table.attr_infos.emplace_back(*$5);
       std::reverse(create_table.attr_infos.begin(), create_table.attr_infos.end());
       delete $5;
+
+      /**
+       * 在resolve阶段，ParsedSqlNode是const类型，无法在resolve阶段添加新的field。
+       * 因此在Parse阶段添加bitmap field
+       */
+      AttrInfoSqlNode null_field;
+      null_field.type = INTS;
+      null_field.name = NULL_FIELD_NAME;
+      null_field.length = 4;
+      null_field.isnull = false;
+      create_table.attr_infos.push_back(null_field);
+
     }
     ;
 
@@ -354,21 +370,37 @@ attr_def_list:
 
     
 attr_def:
-    ID type LBRACE number RBRACE 
+    ID type LBRACE number RBRACE isnull
     {
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)$2;
       $$->name = $1;
       $$->length = $4;
+      $$->isnull = $6;
       free($1);
     }
-    | ID type
+    | ID type isnull
     {
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)$2;
       $$->name = $1;
+      $$->isnull = $3;
       $$->length = 4;
       free($1);
+    }
+    ;
+isnull:
+    {
+      /* empty */
+      $$ = false;
+    }
+    | NOT TNULL
+    {
+      $$ = false;
+    }
+    | TNULL
+    {
+      $$ = true;
     }
     ;
 number:
@@ -418,6 +450,9 @@ value:
     |FLOAT {
       $$ = new Value((float)$1);
       @$ = @1;
+    }
+    |TNULL {
+      $$ = new Value(NULL_VALUE, 1);
     }
     |DATE_STR {
       char* tmp = common::substr($1, 1, strlen($1) - 2);
@@ -800,6 +835,8 @@ comp_op:
     | NE { $$ = NOT_EQUAL; }
     | NOT LKE { $$ = NOT_LIKE; }
     | LKE { $$ = LIKE; }
+    | IS { $$ = OP_ISNULL; }
+    | IS NOT { $$ = OP_ISNOTNULL; }
     ;
 
 load_data_stmt:

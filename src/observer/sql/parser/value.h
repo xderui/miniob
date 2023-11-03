@@ -27,6 +27,7 @@ enum AttrType
   CHARS,          ///< 字符串类型
   INTS,           ///< 整数类型(4字节)
   FLOATS,         ///< 浮点数类型(4字节)
+  NULLS,          
   DATES,          
   BOOLEANS,       ///< boolean类型，当前不是由parser解析出来的，是程序内部使用的
 };
@@ -49,6 +50,7 @@ public:
   }
 
   explicit Value(int val);
+  explicit Value(int val, int flag);                    // 加入flag也是为了和int区分
   explicit Value(float val);
   explicit Value(bool val);
   explicit Value(const char *date, int len, int flag);  //加入flag参数是为了和string类型的构造函数区分
@@ -71,6 +73,7 @@ public:
   void set_boolean(bool val);
   void set_string(const char *s, int len = 0);
   void set_date(int val);
+  void set_null(int val);
   // void set_date(const char* date, int len);
   void set_value(const Value &value);
 
@@ -99,6 +102,7 @@ public:
   std::string get_string() const;
   bool get_boolean() const;
   int get_date() const;
+  int get_null() const;
 
 private:
   AttrType attr_type_ = UNDEFINED;
@@ -109,6 +113,7 @@ private:
     float float_value_;
     bool bool_value_;
     int date_value_;    //采用int存储date类型
+    int null_value_;
   } num_value_;
   std::string str_value_;
 };

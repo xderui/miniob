@@ -78,6 +78,9 @@ public:
       case DATES: {
         return common::compare_date((void*) v1, (void*) v2);
       }
+      case NULLS: {
+        return 1;
+      }
       default: {
         ASSERT(false, "unknown attr type. %d", attr_type_);
         return 0;
@@ -111,7 +114,6 @@ public:
 
   int operator()(const char *v1, const char *v2) const
   {
-    std::cout<<unique_<<std::endl;
     int result = attr_comparator_(v1, v2);
     if (unique_ || result != 0) {
       return result;
@@ -162,9 +164,12 @@ public:
           }
           str.push_back(v[i]);
         }
-        return str;
+        return str; 
       }
       case DATES: {
+        return std::to_string(*(int *)v);
+      }
+      case NULLS: {
         return std::to_string(*(int *)v);
       }
       default: {

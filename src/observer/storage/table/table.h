@@ -126,3 +126,11 @@ private:
   RecordFileHandler *record_handler_ = nullptr;  /// 记录操作
   std::vector<Index *> indexes_;
 };
+
+
+
+
+// bitmap用到的方法，找不到合适的位置加了
+int bitmap2int(std::vector<int>& bitmap);
+
+std::vector<int> int2bitmap(int num);

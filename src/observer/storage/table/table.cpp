@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include <limits.h>
 #include <string.h>
 #include <algorithm>
+#include <cmath>
 
 #include "common/defs.h"
 #include "storage/table/table.h"
@@ -311,17 +312,27 @@ const TableMeta &Table::table_meta() const
 
 RC Table::make_record(int value_num, const Value *values, Record &record)
 {
-  // 检查字段类型是否一致
-  if (value_num + table_meta_.sys_field_num() != table_meta_.field_num()) {
+  // 检查字段数量是否一致
+  // 同样，由于bitmap列的存在，value_num需要+1
+  if (1 + value_num + table_meta_.sys_field_num() != table_meta_.field_num()) {
     LOG_WARN("Input values don't match the table's schema, table name:%s", table_meta_.name());
     return RC::SCHEMA_FIELD_MISSING;
   }
 
+  // 检查字段类型是否一致
+  // 当不一致时，要判断该字段是否允许NULL值
+  std::vector<int> bit_map(value_num, !NULL_FLAG);
   const int normal_field_start_index = table_meta_.sys_field_num();
   for (int i = 0; i < value_num; i++) {
     const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
     const Value &value = values[i];
-    if (field->type() != value.attr_type()) {
+
+    // 类型不一致，字段nullable，且value为INTS && NULL_VALUE，表明该记录的该字段为null
+    if (field->nullable() && value.attr_type() == NULLS) {
+      bit_map[i] = NULL_FLAG;
+      continue;
+    }
+    else if (field->type() != value.attr_type()) {
       LOG_ERROR("Invalid value type. table name =%s, field name=%s, type=%d, but given=%d",
                 table_meta_.name(), field->name(), field->type(), value.attr_type());
       return RC::SCHEMA_FIELD_TYPE_MISMATCH;
@@ -344,6 +355,12 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
     }
     memcpy(record_data + field->offset(), value.data(), copy_len);
   }
+
+  // 写入bitmap字段的值
+  const FieldMeta *field = table_meta_.field(value_num + normal_field_start_index);
+  Value* value = new Value(bitmap2int(bit_map));
+  size_t copy_len = field->len();
+  memcpy(record_data + field->offset(), value->data(), copy_len);
 
   record.set_data_owner(record_data, record_size);
   return RC::SUCCESS;
@@ -564,4 +581,26 @@ RC Table::sync()
   }
   LOG_INFO("Sync table over. table=%s", name());
   return rc;
+}
+
+
+
+int bitmap2int(std::vector<int>& bitmap) {
+  int ret = 0;
+  for(int i = 0; i < bitmap.size(); i++) {      
+    ret = ret + bitmap[i] * (int) pow(2, i);
+  }
+  return ret;
+}
+
+std::vector<int> int2bitmap(int num) {
+  std::vector<int> bitmap;
+  while (num != 0)
+  {
+    bitmap.push_back(num & 1);
+    num = num >> 1;
+  }
+  if (bitmap.size() == 0)
+    bitmap.push_back(!NULL_FLAG);
+  return bitmap;
 }

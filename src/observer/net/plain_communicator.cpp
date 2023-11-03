@@ -195,12 +195,32 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
   }
 
   const TupleSchema &schema = sql_result->tuple_schema();
-  const int cell_num = schema.cell_num();
+  int cell_num = schema.cell_num();
+
+  // 因为增加了bitmap列，因此cellnum减1
+  // if (false && sql_result->get_physicalOperator_type() == PhysicalOperatorType::PROJECT)
+  //   cell_num--;
+
+
+  // 增加bitmap列后，如果是联表查询，那么结果会出现多个bitmap列
+  // 存储每个bitmap的索引，后续投影时忽略
+  std::vector<int> ignored_index;
 
   for (int i = 0; i < cell_num; i++) {
     const TupleCellSpec &spec = schema.cell_at(i);
     const char *alias = spec.alias();
-    if (nullptr != alias || alias[0] != 0) {
+    // std::cout  << spec.table_name() << " & " << spec.field_name() << " & " << spec.alias() << std::endl;
+
+    if (strcmp(alias, NULL_FIELD_NAME.c_str()) == 0 || strcmp(spec.field_name(), NULL_FIELD_NAME.c_str()) == 0){
+      ignored_index.push_back(i);
+    }
+
+
+    bool ffflag = false;
+    if(ignored_index.size() != 0 && ignored_index[ignored_index.size() - 1] == i){
+      ffflag = true;
+    }
+    if (!ffflag && (nullptr != alias || alias[0] != 0)) {
       if (0 != i) {
         const char *delim = " | ";
         rc = writer_->writen(delim, strlen(delim));
@@ -211,6 +231,7 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
       }
 
       int len = strlen(alias);
+
       rc = writer_->writen(alias, len);
       if (OB_FAIL(rc)) {
         LOG_WARN("failed to send data to client. err=%s", strerror(errno));
@@ -230,13 +251,137 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
     }
   }
 
+
+
   rc = RC::SUCCESS;
   Tuple *tuple = nullptr;
+
+  // 如果是投影运算的话，因为null的存在，需要修改输出逻辑
+  /*
+  if (sql_result->get_physicalOperator_type() == PhysicalOperatorType::PROJECT)
+  {
+    // 修改输出逻辑
+    // 取出全部tuple
+    std::vector<std::vector<Value>> tuple_set;
+    while (RC::SUCCESS == (rc = sql_result->next_tuple(tuple))) 
+    {
+      std::vector<Value> temp;
+      int num_cell = tuple->cell_num();
+      for (int i = 0; i < num_cell; i++)
+      {
+        Value cell;
+        tuple->cell_at(i, cell);
+        temp.push_back(cell);
+      }
+      tuple_set.push_back(temp);
+    }
+    // 重新检查每一个tuple，修改NULL的类型
+    // for (int i = 0; i < tuple_set.size(); i++)
+    // {
+    //   const TupleCellSpec &spec = schema.cell_at(i);
+    //   int cell_num = tuple_set[i].size();
+    //   std::vector<int> bitmap = int2bitmap(tuple_set[i][cell_num - 1].get_int());
+    //   for (int j = 0; j < bitmap.size(); j++) 
+    //   {
+    //     if (bitmap[j] == NULL_FLAG)
+    //     {
+    //       tuple_set[i][j] = Value(NULL_VALUE, 1);
+    //     }
+    //   }
+    // }
+
+    // 输出SELECT结果
+    for (int i = 0; i < tuple_set.size(); i++)
+    {
+      for (int j = 0; j < tuple_set[i].size() - 1; j++)
+      {
+        if (j != 0) {
+          const char *delim = " | ";
+          rc = writer_->writen(delim, strlen(delim));
+          if (OB_FAIL(rc)) {
+            LOG_WARN("failed to send data to client. err=%s", strerror(errno));
+            sql_result->close();
+            return rc;
+          }
+        }
+        std::string cell_str = tuple_set[i][j].to_string();
+        rc = writer_->writen(cell_str.data(), cell_str.size());
+        if (OB_FAIL(rc)) {
+          LOG_WARN("failed to send data to client. err=%s", strerror(errno));
+          sql_result->close();
+          return rc;
+        }
+      }
+      char newline = '\n';
+      rc = writer_->writen(&newline, 1);
+      if (OB_FAIL(rc)) 
+      {
+        LOG_WARN("failed to send data to client. err=%s", strerror(errno));
+        sql_result->close();
+        return rc;
+      }
+    }
+  } 
+  // 对于非投影运算，保持不变
+  else {
+    std::cout << "IN" << std::endl;
+      while (RC::SUCCESS == (rc = sql_result->next_tuple(tuple))) {
+      assert(tuple != nullptr);
+
+      int cell_num = tuple->cell_num();
+      for (int i = 0; i < cell_num; i++) {
+        if (i != 0) {
+          const char *delim = " | ";
+          rc = writer_->writen(delim, strlen(delim));
+          if (OB_FAIL(rc)) {
+            LOG_WARN("failed to send data to client. err=%s", strerror(errno));
+            sql_result->close();
+            return rc;
+          }
+        }
+
+        Value value;
+        rc = tuple->cell_at(i, value);
+        if (rc != RC::SUCCESS) {
+          sql_result->close();
+          return rc;
+        }
+
+        std::string cell_str = value.to_string();
+        rc = writer_->writen(cell_str.data(), cell_str.size());
+        if (OB_FAIL(rc)) {
+          LOG_WARN("failed to send data to client. err=%s", strerror(errno));
+          sql_result->close();
+          return rc;
+        }
+      }
+
+      char newline = '\n';
+      rc = writer_->writen(&newline, 1);
+      if (OB_FAIL(rc)) {
+        LOG_WARN("failed to send data to client. err=%s", strerror(errno));
+        sql_result->close();
+        return rc;
+      }
+    }
+  }
+    */
+
+
   while (RC::SUCCESS == (rc = sql_result->next_tuple(tuple))) {
     assert(tuple != nullptr);
 
     int cell_num = tuple->cell_num();
     for (int i = 0; i < cell_num; i++) {
+      bool need_ignore = false;
+      for (int t = 0; t < ignored_index.size(); t++) {
+        if (ignored_index[t] == i) {
+          need_ignore = true;
+          break;
+        }
+      }
+      if(need_ignore)
+        continue;
       if (i != 0) {
         const char *delim = " | ";
         rc = writer_->writen(delim, strlen(delim));
