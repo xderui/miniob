@@ -125,6 +125,9 @@ RC AggregatePhysicalOperator::next()
 
     count++;
   }
+  if (result_cells.size() == 0) {
+    result_cells.push_back(Value(0));
+  }
   if (rc == RC::RECORD_EOF) {
     rc = RC::SUCCESS;
   }
