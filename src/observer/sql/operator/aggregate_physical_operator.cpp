@@ -125,9 +125,9 @@ RC AggregatePhysicalOperator::next()
 
     count++;
   }
-  if (result_cells.size() == 0) {
-    result_cells.push_back(Value(0));
-  }
+  // if (result_cells.size() == 0) {
+  //   result_cells.push_back(Value(0));
+  // }
   if (rc == RC::RECORD_EOF) {
     rc = RC::SUCCESS;
   }
@@ -137,6 +137,24 @@ RC AggregatePhysicalOperator::next()
     if (aggr == AggrOp::AGGR_AVG) {
       result_cells[cell_idx].set_float(result_cells[cell_idx].get_float() / count);
       LOG_TRACE("update avg. avg=%s", result_cells[cell_idx].to_string().c_str());
+    }
+  }
+  for (int cell_idx = 0; cell_idx < aggregations_.size(); cell_idx++) {
+    const AggrOp aggr = aggregations_[cell_idx];
+    if (result_cells.size() == 0 && aggr == AggrOp::AGGR_COUNT) {
+      result_cells.push_back(Value(0));
+    }
+    if (result_cells.size() == 0 && aggr == AggrOp::AGGR_MAX) {
+      result_cells.push_back(Value(NULL_VALUE, 1));
+    }
+    if (result_cells.size() == 0 && aggr == AggrOp::AGGR_MIN) {
+      result_cells.push_back(Value(NULL_VALUE, 1));
+    }
+    if (result_cells.size() == 0 && aggr == AggrOp::AGGR_SUM) {
+      result_cells.push_back(Value(NULL_VALUE, 1));
+    }
+    if (result_cells.size() == 0 && aggr == AggrOp::AGGR_AVG) {
+      result_cells.push_back(Value(NULL_VALUE, 1));
     }
   }
   result_tuple_.set_cells(result_cells);
