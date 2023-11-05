@@ -261,15 +261,14 @@ int Value::compare(const Value &other) const
     std::string this_data = removeFloatStringEndZero(floatString_to_String(this->str_value_));
     return common::compare_string((void *)(this_data.c_str()), this_data.length(), (void *)(other_data.c_str()), other_data.length());
   } else if (this->attr_type_ == INTS && other.attr_type_ == NULLS) {
-    return -1;
+    return 1;
   } else if (this->attr_type_ == FLOATS && other.attr_type_ == NULLS) {
-    return -1;
+    return 1;
   } else if (this->attr_type_ == CHARS && other.attr_type_ == NULLS) {
-    return -1;
+    return 1;
   } else if (this->attr_type_ == DATES && other.attr_type_ == NULLS) {
-    return -1;
+    return 1;
   } else if (this->attr_type_ == NULLS && other.attr_type_ == INTS) {
-    std::cout << "AAAA" << std::endl;
     return -1;
   } else if (this->attr_type_ == NULLS && other.attr_type_ == FLOATS) {
     return -1;
