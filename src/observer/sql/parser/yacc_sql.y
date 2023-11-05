@@ -301,7 +301,7 @@ create_index_stmt:    /*create index 语句的语法解析树*/
       create_index.index_name = $4;
       create_index.relation_name = $6;
       // create_index.attribute_name = $8;
-      if ($8 != nullptr){
+      if ($9 != nullptr){
         create_index.attribute_names.swap(*$9);
       }
       create_index.attribute_names.emplace_back($8);

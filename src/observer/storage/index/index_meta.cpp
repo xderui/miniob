@@ -82,9 +82,6 @@ RC IndexMeta::from_json(const TableMeta &table, const Json::Value &json_value, I
     fields.emplace_back(*table.field(field_name));
     field_name = strtok(NULL, delim);
   }
-  for (FieldMeta field: fields){
-    std::cout<<field.name()<<std::endl;
-  }
 
 
   if (!fields.size()){
@@ -122,11 +119,6 @@ std::vector<const char *> IndexMeta::fields() const
   for (int i=0;i<fields_.size(); ++i){
     fields_vec.emplace_back(fields_[i].c_str());
   }
-
-  for (auto field: fields_vec){
-    std::cout<<field<<std::endl;
-  }
-
 
   return fields_vec;
 }

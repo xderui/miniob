@@ -1869,7 +1869,7 @@ yyreduce:
       create_index.index_name = (yyvsp[-6].string);
       create_index.relation_name = (yyvsp[-4].string);
       // create_index.attribute_name = $8;
-      if ((yyvsp[-2].string) != nullptr){
+      if ((yyvsp[-1].relation_list) != nullptr){
         create_index.attribute_names.swap(*(yyvsp[-1].relation_list));
       }
       create_index.attribute_names.emplace_back((yyvsp[-2].string));

@@ -201,7 +201,6 @@ RC Table::open(const char *meta_file, const char *base_dir)
     std::vector<FieldMeta> field_metas;
     for (const char * field: index_meta->fields()){
       const FieldMeta *field_meta = table_meta_.field(field);
-      std::cout<< "target: "<<field <<std::endl;
       if (field_meta == nullptr){
         return RC::INTERNAL;
       }
@@ -408,12 +407,6 @@ RC Table::create_index(Trx *trx, std::vector<FieldMeta> field_metas, const char 
     LOG_INFO("Invalid input arguments, table name is %s, index_name is blank or attribute_name is blank", name());
     return RC::INVALID_ARGUMENT;
   }
-
-
-  for (FieldMeta field_meta: field_metas){
-    std::cout<< field_meta.name()<<std::endl;
-  }
-
 
 
   IndexMeta new_index_meta;

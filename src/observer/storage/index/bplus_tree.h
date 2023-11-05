@@ -63,36 +63,66 @@ public:
   int attr_length() const
   {
     int attr_length = 0;
-    for (int len: attr_lengths_){
-      attr_length += len;
+    // for (int len: attr_lengths_){
+    //   attr_length += len;
+    // }
+
+    for (int i=0;i<attr_lengths_.size();++i){
+      attr_length += attr_lengths_[i];
     }
+
     return attr_length;
+  }
+
+  std::vector<int> attr_lengths() const {
+    return attr_lengths_;
   }
 
   int operator()(const char *v1, const char *v2) const
   {
     int offset = 0;
+    std::cout<<"start comparing, ATTR_LENGTH="<<attr_lengths_.size()<<std::endl;
+
+    // std::cout<<"check types"<<std::endl;
+    // for (int i=0;i<attr_lengths_.size();++i) std::cout<<attr_lengths_[i]<<std::endl;
+    std::cout<<"check in operator"<<std::endl;
+    for (int i=0;i<attr_lengths_.size();++i) std::cout<<*(int *)(v1+attr_lengths_[i])<<" "<<*(int *)(v2+attr_lengths_[i])<<std::endl;
+    std::cout<<"check finished!"<<std::endl;
+
     for (int i=0;i<attr_lengths_.size();++i){
+      std::cout<<"start comparing:"<<offset<<std::endl;
+      int res=-1;
       switch (attr_types_[i]) {
         case INTS: {
-          return common::compare_int((void *)(v1+offset), (void *)(v2+offset));
-        } break;
+          res = common::compare_int((void *)(v1+offset), (void *)(v2+offset));
+          if (res!=0) return res;
+          break;
+        } 
         case FLOATS: {
-          return common::compare_float((void *)(v1+offset), (void *)(v2+offset));
-        }
+          res = common::compare_float((void *)(v1+offset), (void *)(v2+offset));
+          if (res!=0) return res;
+          break;
+        } 
         case CHARS: {
-          return common::compare_string((void *)(v1+offset), attr_lengths_[i], (void *)(v2+offset), attr_lengths_[i]);
-        }
+          res = common::compare_string((void *)(v1+offset), attr_lengths_[i], (void *)(v2+offset), attr_lengths_[i]);
+          if (res!=0) return res;
+          break;
+        } 
         case DATES: {
-          return common::compare_date((void*) (v1+offset), (void*) (v2+offset));
-        }
+          res = common::compare_date((void*) (v1+offset), (void*) (v2+offset));
+          if (res!=0) return res;
+          break;
+        } 
         default: {
-          ASSERT(false, "unknown attr type. %d", attr_type_);
-          return 0;
+          ASSERT(false, "unknown attr type. %d", attr_types_[i]);
+          // return 0;
         }
       }
+      std::cout<<"com_res:"<<res<<endl;
       offset += attr_lengths_[i];
+
     }
+    return 0;
   }
 
 private:
@@ -111,6 +141,7 @@ public:
   void init(std::vector<AttrType> types, std::vector<int> lengths, bool unique)
   {
     attr_comparator_.init(types, lengths);
+
     unique_ = unique;
   }
 
@@ -121,14 +152,49 @@ public:
 
   int operator()(const char *v1, const char *v2) const
   {
+    std::cout<<"Key-value COmparaing"<<std::endl;
+
     int result = attr_comparator_(v1, v2);
     if (unique_ || result != 0) {
       return result;
     }
 
-    const RID *rid1 = (const RID *)(v1 + attr_comparator_.attr_length());
-    const RID *rid2 = (const RID *)(v2 + attr_comparator_.attr_length());
-    return RID::compare(rid1, rid2);
+    std::cout<<"result:"<<result<<std::endl;
+
+    std::cout<<"operator_rid"<<std::endl;
+    std::vector<int> attr_lengths(attr_comparator_.attr_lengths());
+
+    int allocate_idx = 0;
+    for (int i=0;i<attr_lengths.size();++i){
+      std::cout<<*(int *)(v1+allocate_idx)<<" "<<*(int *)(v2+allocate_idx)<<" "<<attr_lengths[i]<<std::endl;
+      allocate_idx += attr_lengths[i];
+    }
+
+    std::cout<<"finished"<<std::endl;
+
+    // const RID *rid1 = (const RID *)(v1 + attr_comparator_.attr_length());
+    // const RID *rid2 = (const RID *)(v2 + attr_comparator_.attr_length());
+
+    RID *rid1, *rid2;
+    allocate_idx = 0;
+    int same_flag = 1;
+    for (int i=0;i<attr_lengths.size();++i){
+      rid1 = (RID *)(v1+allocate_idx);
+      rid2 = (RID *)(v2+allocate_idx);
+      allocate_idx += attr_lengths[i];
+      int page_diff = rid1->page_num - rid2->page_num;
+      if (page_diff != 0) {
+        same_flag = 0;
+        break;
+      } else if(rid1->slot_num - rid2->slot_num !=0){
+        same_flag = 0;
+        break;
+      }
+    }
+
+    // return RID::compare(rid1, rid2);
+
+    return same_flag;
   }
 
 private:
@@ -143,49 +209,74 @@ private:
 class AttrPrinter 
 {
 public:
-  void init(AttrType type, int length)
+  void init(std::vector<AttrType> types, std::vector<int> lengths)
   {
-    attr_type_ = type;
-    attr_length_ = length;
+    attr_types_ = types;
+    attr_lengths_ = lengths;
   }
+
 
   int attr_length() const
   {
-    return attr_length_;
+    int attr_length = 0;
+    for (int i=0;i<attr_lengths_.size();++i){
+      attr_length += attr_lengths_[i];
+    }
+
+    return attr_length;
   }
 
   std::string operator()(const char *v) const
   {
-    switch (attr_type_) {
-      case INTS: {
-        return std::to_string(*(int *)v);
-      } break;
-      case FLOATS: {
-        return std::to_string(*(float *)v);
-      }
-      case CHARS: {
-        std::string str;
-        for (int i = 0; i < attr_length_; i++) {
-          if (v[i] == 0) {
-            break;
-          }
-          str.push_back(v[i]);
+    int allocate_idx = 0;
+    std::string str = "";
+    for (int k=0;k<attr_lengths_.size();++k){
+      switch (attr_types_[k]) {
+        case INTS: {
+          char* tmp = new char[attr_lengths_[k]+1];
+          memset(tmp, 0, sizeof(char)*(attr_lengths_[k]+1));
+          memcpy(tmp, v+allocate_idx, attr_lengths_[k]);
+          str += std::to_string(*(int *)tmp);
+        } break;
+        case FLOATS: {
+          char* tmp = new char[attr_lengths_[k]+1];
+          memset(tmp, 0, sizeof(char)*(attr_lengths_[k]+1));
+          memcpy(tmp, v+allocate_idx, attr_lengths_[k]);
+          str += std::to_string(*(float *)tmp);
         }
-        return str;
-      }
-      case DATES: {
-        return std::to_string(*(int *)v);
-      }
-      default: {
-        ASSERT(false, "unknown attr type. %d", attr_type_);
+        case CHARS: {
+          for (int i = 0; i < attr_lengths_[k]; ++i) {
+            if (attr_types_[i+allocate_idx] == 0) {
+              break;
+            }
+            str.push_back(attr_types_[i+allocate_idx]);
+          }
+          return str;
+        } break;
+        case DATES: {
+          char* tmp = new char[attr_lengths_[k]+1];
+          memset(tmp, 0, sizeof(char)*(attr_lengths_[k]+1));
+          memcpy(tmp, v+allocate_idx, attr_lengths_[k]);
+          int tmp_ = *(int *)tmp;
+          str.append(std::to_string(tmp_/10000));
+          str.push_back('-');
+          str.append(std::to_string((tmp_%10000)/100));
+          str.push_back('-');
+          str.append(std::to_string(tmp_%100));
+        }  break;
+        default: {
+          ASSERT(false, "unknown attr type. %d", attr_type_);
+        }
+        allocate_idx += attr_lengths_[k];
+
       }
     }
-    return std::string();
+    return str;
   }
 
 private:
-  AttrType attr_type_;
-  int attr_length_;
+  std::vector<AttrType> attr_types_;
+  std::vector<int> attr_lengths_;
 };
 
 /**
@@ -195,9 +286,9 @@ private:
 class KeyPrinter 
 {
 public:
-  void init(AttrType type, int length)
+  void init(std::vector<AttrType> types, std::vector<int> lengths)
   {
-    attr_printer_.init(type, length);
+    attr_printer_.init(types, lengths);
   }
 
   const AttrPrinter &attr_printer() const
@@ -514,7 +605,7 @@ public:
    * @note 这里假设user_key的内存大小与attr_length 一致
    */
   RC insert_entry(const char *user_key, const RID *rid);
-  RC insert_entry(const char *user_key, std::vector<FieldMeta> field_metas, const RID *rid);
+  RC insert_entry(const char *user_key, std::vector<FieldMeta> &field_metas, const RID *rid);
 
   /**
    * 从IndexHandle句柄对应的索引中删除一个值为（*pData，rid）的索引项

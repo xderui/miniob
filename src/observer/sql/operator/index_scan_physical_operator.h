@@ -29,6 +29,11 @@ public:
       const Value *left_value, bool left_inclusive,
       const Value *right_value, bool right_inclusive);
 
+  IndexScanPhysicalOperator(
+    Table *table, Index *index, bool readonly, 
+    std::vector<Value> left_values, bool left_inclusive, 
+    std::vector<Value> right_values, bool right_inclusive);
+
   virtual ~IndexScanPhysicalOperator() = default;
 
   PhysicalOperatorType type() const override
@@ -58,12 +63,16 @@ private:
   IndexScanner *index_scanner_ = nullptr;
   RecordFileHandler *record_handler_ = nullptr;
 
+  std::unique_ptr<common::MemPoolItem> mem_pool_item_;
+
   RecordPageHandler record_page_handler_;
   Record current_record_;
   RowTuple tuple_;
 
   Value left_value_;
   Value right_value_;
+  std::vector<Value> left_values_;
+  std::vector<Value> right_values_;
   bool left_inclusive_ = false;
   bool right_inclusive_ = false;
 

@@ -56,17 +56,6 @@ RC CreateIndexStmt::create(Db *db, const CreateIndexSqlNode &create_index, Stmt 
     return RC::SCHEMA_FIELD_NOT_EXIST;
   }
 
-  // std::cout<<"create_index_stmt"<<std::endl;
-  for (FieldMeta field_meta: field_metas){
-    std::cout<<field_meta.name()<<std::endl;
-  }
-
-
-  // std::cout<<"create_index_stmt"<<std::endl;
-
-
-
-
 
   // const FieldMeta *field_meta = table->table_meta().field(create_index.attribute_name.c_str());
   // if (nullptr == field_meta) {

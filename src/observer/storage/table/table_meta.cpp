@@ -125,7 +125,6 @@ const FieldMeta *TableMeta::field(const char *name) const
     return nullptr;
   }
   for (const FieldMeta &field : fields_) { 
-    std::cout<< field.name() << " "<< name<< std::endl;
     if (0 == strcmp(field.name(), name)) {
       return &field;
     }
@@ -180,11 +179,13 @@ const IndexMeta *TableMeta::find_index_by_fields(std::vector<const char *> field
 {
 
   for (const IndexMeta &index : indexes_) {
+    std::cout<<index.field_num()<<" "<<fields.size()<<std::endl;
     if (index.field_num() == fields.size()){
       std::vector<const char *> index_fields = index.fields();
       int field_num = fields.size();
       bool same_flag = true;
       for (int i=0;i<field_num;++i){
+        std::cout<<index_fields[i]<<fields[i]<<std::endl;
         if (0 != strcmp(index_fields[i], fields[i])){
           same_flag = false;
           break;
@@ -312,7 +313,6 @@ int TableMeta::deserialize(std::istream &is)
     }
     const int index_num = indexes_value.size();
     std::vector<IndexMeta> indexes(index_num);
-    std::cout<<index_num<<std::endl;
     
     for (int i = 0; i < index_num; i++) {
       IndexMeta &index = indexes[i];
