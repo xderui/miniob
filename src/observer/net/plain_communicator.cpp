@@ -291,7 +291,6 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
     // 排序
     std::sort(tuple_set.begin(), tuple_set.end(), 
       [order_index, order_op](std::vector<Value>& t1, std::vector<Value>& t2){
-
         for (int i = 0; i < order_index.size(); i++)
         {
           int target_index = order_index[i];
