@@ -44,6 +44,17 @@ enum AggrOp
 };
 
 /**
+ * @brief 描述排序规则，升序 | 降序 | 默认（降序）
+*/
+enum OrderOp
+{
+  ORDER_ASC,
+  ORDER_DESC,
+  ORDER_DEFAULT,
+  ORDER_NO_OP,
+};
+
+/**
  * @brief 描述一个属性
  * @ingroup SQLParser
  * @details 属性，或者说字段(column, field)
@@ -111,10 +122,11 @@ struct ConditionSqlNode
  */
 struct SelectSqlNode
 {
-  std::vector<RelAttrSqlNode>     attributes;    ///< attributes in select clause
-  std::vector<std::string>        relations;     ///< 查询的表
-  std::vector<ConditionSqlNode>   conditions;    ///< 查询条件，使用AND串联起来多个条件
-  std::string                     aggregation;   ///< 聚合操作
+  std::vector<RelAttrSqlNode>     attributes;                     ///< attributes in select clause
+  std::vector<std::string>        relations;                      ///< 查询的表
+  std::vector<ConditionSqlNode>   conditions;                     ///< 查询条件，使用AND串联起来多个条件
+  std::string                     aggregation;                    ///< 聚合操作
+  std::vector<std::pair<RelAttrSqlNode, OrderOp>> order_rules;    ///< 排序规则
 };
 
 /**

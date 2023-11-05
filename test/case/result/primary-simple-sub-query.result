@@ -32,6 +32,7 @@ select * from ssq_1 where col1 = (select avg(ssq_2.col2) from ssq_2);
 1 | 4 | 11.2
 ID | COL1 | FEAT1
 select * from ssq_1 where (select avg(ssq_2.col2) from ssq_2) = col1;
+select * from ssq_1, ssq_2 where ssq_1.col1 = 
 1 | 4 | 11.2
 ID | COL1 | FEAT1
 
