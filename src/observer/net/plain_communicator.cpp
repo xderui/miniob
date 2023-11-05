@@ -296,10 +296,10 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
           int target_index = order_index[i];
           Value v1 = t1[target_index];
           Value v2 = t2[target_index];
-          int ret = v1.compare(v2);
           if (v1.attr_type() == NULLS && v2.attr_type() == NULLS) {
             continue;
           }
+          int ret = v1.compare(v2);
           if (ret != 0)
           {
             return (order_op[i] == ORDER_ASC || order_op[i] == ORDER_DEFAULT) ? ret <= 0 : ret >= 0;
