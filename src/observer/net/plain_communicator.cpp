@@ -306,6 +306,7 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
       }
     );
 
+
     // 输出
     for(int i = 0; i < tuple_set.size(); i++){
       for(int j = 0; j < tuple_set[i].size(); j++)
