@@ -297,6 +297,9 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
           Value v1 = t1[target_index];
           Value v2 = t2[target_index];
           int ret = v1.compare(v2);
+          if (v1.attr_type() == NULLS && v2.attr_type() == NULLS) {
+            continue;
+          }
           if (ret != 0)
           {
             return (order_op[i] == ORDER_ASC || order_op[i] == ORDER_DEFAULT) ? ret <= 0 : ret >= 0;
@@ -305,7 +308,6 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
         return true;
       }
     );
-
 
     // 输出
     for(int i = 0; i < tuple_set.size(); i++){
