@@ -905,7 +905,6 @@ RC BplusTreeHandler::create(const char *file_name, const std::vector<FieldMeta> 
     return RC::NOMEM;
   }
 
-  std::cout<<"check create:"<< attr_types.size()<<" "<<attr_lengths.size()<<std::endl;
 
 
   key_comparator_.init(attr_types, attr_lengths, unique);
@@ -956,7 +955,6 @@ RC BplusTreeHandler::open(const char *file_name )
   // close old page_handle
   disk_buffer_pool->unpin_page(frame);
 
-  std::cout<<"attr_num"<<file_header_.attr_num<<std::endl;
 
   std::vector<AttrType> attr_types;
   std::vector<int> attr_lengths;
@@ -965,7 +963,6 @@ RC BplusTreeHandler::open(const char *file_name )
     attr_lengths.emplace_back(file_header_.attr_lengths[i]);
   }
 
-  std::cout<<"check open:"<< attr_types.size()<<" "<<attr_lengths.size()<<std::endl;
 
   key_comparator_.init(attr_types, attr_lengths, file_header_.unique);
   key_printer_.init(attr_types, attr_lengths);
@@ -1489,24 +1486,17 @@ MemPoolItem::unique_ptr BplusTreeHandler::make_key(const char *user_key, std::ve
   // char *key = static_cast<char *>(pkey.get());
 
 
-  std::cout<<"make_Key offset_size:"<<field_metas.size()<<std::endl;
 
   for (int i=0;i<field_metas.size();++i){
-    std::cout<<"offset:"<<field_metas[i].offset()<<std::endl;
-    std::cout<<*(int *)(user_key+field_metas[i].offset())<<" "<<field_metas[i].len()<<" ";
     memcpy(static_cast<char *>(key.get()) + allocate_idx, user_key+field_metas[i].offset(), field_metas[i].len());
     allocate_idx += field_metas[i].len();
   }
-  std::cout<<std::endl;
   memcpy(static_cast<char *>(key.get()) + allocate_idx, &rid, sizeof(rid));
 
-  std::cout<<"check allocation"<<std::endl;
   allocate_idx = 0;
   for (int i=0;i<field_metas.size();++i){
-    std::cout<<*(int *)(static_cast<char *>(key.get())+allocate_idx)<<std::endl;
     allocate_idx += field_metas[i].len();
   }
-  std::cout<<"chech finished!"<<std::endl;
 
   // memcpy(static_cast<char *>(key.get()), user_key, file_header_.attr_lengths);
   // memcpy(static_cast<char *>(key.get()) + file_header_.attr_length, &rid, sizeof(rid));
@@ -1564,10 +1554,6 @@ RC BplusTreeHandler::insert_entry(const char *user_key, std::vector<FieldMeta> &
     return RC::INVALID_ARGUMENT;
   }
 
-  std::cout<<"insert!"<<std::endl;
-
-  std::cout<<"insert_entry, field_size:"<<field_metas.size()<<std::endl;
-
   // MemPoolItem::unique_ptr pkey = make_key(user_key, *rid);
   MemPoolItem::unique_ptr pkey = make_key(user_key, field_metas, *rid);
   if (pkey == nullptr) {
@@ -1575,7 +1561,6 @@ RC BplusTreeHandler::insert_entry(const char *user_key, std::vector<FieldMeta> &
     return RC::NOMEM;
   }
 
-  std::cout<<rid->to_string()<<std::endl;
 
   char *key = static_cast<char *>(pkey.get());
 
@@ -1855,24 +1840,28 @@ RC BplusTreeHandler::delete_entry(const char *user_key, const RID *rid)
 
 RC BplusTreeHandler::delete_entry(const char *user_key, std::vector<FieldMeta> field_metas, const RID *rid)
 {
-  // MemPoolItem::unique_ptr pkey = mem_pool_item_->alloc_unique_ptr();
+  MemPoolItem::unique_ptr pkey = mem_pool_item_->alloc_unique_ptr();
   // if (nullptr == pkey) {
   //   LOG_WARN("Failed to alloc memory for key. size=%d", file_header_.key_length);
   //   return RC::NOMEM;
   // }
 
-  MemPoolItem::unique_ptr pkey = make_key(user_key, field_metas, *rid);
-  char *key = static_cast<char *>(pkey.get());
-  if (key == nullptr) {
+  // MemPoolItem::unique_ptr pkey = make_key(user_key, field_metas, *rid);
+  // char *key = static_cast<char *>(pkey.get());
+  if (pkey == nullptr) {
     LOG_WARN("Failed to alloc memory for key.");
     return RC::NOMEM;
   }
 
-  // pkey = make_key(user_key, field_metas, *rid);
+  char *key = static_cast<char *>(pkey.get());
 
-  // char *key = static_cast<char *>(pkey.get());
+  int allocate_idx = 0;
+  for (int i=0;i<field_metas.size();++i){
+    memcpy(key + allocate_idx, user_key+field_metas[i].offset(), field_metas[i].len());
+    allocate_idx += field_metas[i].len();
+  }
+  memcpy(key + allocate_idx, rid, sizeof(*rid));
 
-  // for (int i=0;i<)
 
   // memcpy(key, user_key, file_header_.attr_length);
   // memcpy(key + file_header_.attr_length, rid, sizeof(*rid));
@@ -2120,7 +2109,6 @@ RC BplusTreeScanner::fix_user_key(
     const char *user_key, int key_len, bool want_greater, char **fixed_key, bool *should_inclusive)
 {
 
-  std::cout<<"be fixed"<<std::endl;
   if (nullptr == fixed_key || nullptr == should_inclusive) {
     return RC::INVALID_ARGUMENT;
   }

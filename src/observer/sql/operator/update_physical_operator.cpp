@@ -69,13 +69,9 @@ RC UpdatePhysicalOperator::next()
       // 定位列名索引
       const std::vector<FieldMeta> *table_field_metas = table_->table_meta().field_metas();
       const char *target_field_name= field_.field_name();
-      // std::vector<FieldMeta>::iterator iter;
-      // for (iter=table_field_metas->begin(); iter<table_field_metas->end();++iter){
-      //   FieldMeta fieldmeta = *iter;
-      //   if (0 == strcmp(target_field_meta, fieldmeta.name())){
-      //     target_index = 
-      //   }
-      // }
+
+      std::cout<<"target field_name \t"<<target_field_name<<std::endl;
+
       int meta_num = table_field_metas->size();
       int target_index = -1;
       for (int i=0; i<meta_num; ++i){
@@ -105,7 +101,10 @@ RC UpdatePhysicalOperator::next()
       // 2. Record
       Record new_record;
       RC rc = table_->make_record(cell_num, values.data(), new_record);
-
+      if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to make record. rc=%s", strrc(rc));
+        return rc;
+      }
       rc = trx_->insert_record(table_, new_record);
       if (rc != RC::SUCCESS) {
         LOG_WARN("failed to insert record: %s", strrc(rc));

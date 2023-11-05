@@ -79,6 +79,7 @@ struct RID
   static RID *max()
   {
     static RID rid{std::numeric_limits<PageNum>::max(), std::numeric_limits<SlotNum>::max()};
+    std::cout<<"max rid:\t"<<rid.page_num<<" "<<rid.slot_num<<std::endl;
     return &rid;
   }
 };

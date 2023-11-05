@@ -65,6 +65,12 @@ RC IndexScanPhysicalOperator::open(Trx *trx)
   // common::MemPoolItem::unique_ptr left_pkey = mem_pool_item_->alloc_unique_ptr();
   // common::MemPoolItem::unique_ptr right_pkey = mem_pool_item_->alloc_unique_ptr();
 
+  // if (left_pkey == nullptr || right_pkey == nullptr) {
+  //   LOG_WARN("Failed to alloc memory for key.");
+  //   return RC::INTERNAL;
+  // }
+  
+  
   char *left_key = (char *)malloc(left_values_.size() * sizeof(char));
   char *right_key = (char *)malloc(left_values_.size() * sizeof(char));
 
@@ -77,16 +83,19 @@ RC IndexScanPhysicalOperator::open(Trx *trx)
   int allocate_idx = 0;
   int left_lengths = 0;
   int right_lengths = 0;
+  std::cout<<"check malloc"<<std::endl;
+
   for (int i=0;i<left_values_.size();++i){
-    std::cout << left_values_[i].length()<<" ";
     memcpy(left_key+allocate_idx, left_values_[i].data(),left_values_[i].length());
     memcpy(right_key+allocate_idx, right_values_[i].data(),right_values_[i].length());
+    std::cout<<*(int *)(left_key + allocate_idx) <<" "<<*(int *)(right_key + allocate_idx) ;
     allocate_idx += left_values_[i].length();
     left_lengths += left_values_[i].length();
     right_lengths += right_values_[i].length();
   }
 
-  std::cout<<std::endl;
+  std::cout<<"\ncheck finished!"<<std::endl;
+
 
   // IndexScanner *index_scanner = index_->create_scanner(left_value_.data(),
   //     left_value_.length(),

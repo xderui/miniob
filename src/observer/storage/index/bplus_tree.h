@@ -156,6 +156,8 @@ public:
 
     int result = attr_comparator_(v1, v2);
     if (unique_ || result != 0) {
+      std::cout<<*(int *)(v1)<<" "<<*(int *)(v2)<<std::endl;
+      std::cout<<"in result:\t"<<result<<std::endl;
       return result;
     }
 

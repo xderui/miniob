@@ -244,6 +244,7 @@ RC Table::open(const char *meta_file, const char *base_dir)
 
 RC Table::insert_record(Record &record)
 {
+  
   RC rc = RC::SUCCESS;
   rc = record_handler_->insert_record(record.data(), table_meta_.record_size(), &record.rid());
   if (rc != RC::SUCCESS) {
@@ -251,13 +252,18 @@ RC Table::insert_record(Record &record)
     return rc;
   }
 
+  std::cout<<"insert record.data: "<<record.data()<<"\t"<<record.rid().page_num<<" "<<record.rid().slot_num<<std::endl;
+
   rc = insert_entry_of_indexes(record.data(), record.rid());
   if (rc != RC::SUCCESS) { // 可能出现了键值重复
-    RC rc2 = delete_entry_of_indexes(record.data(), record.rid(), false/*error_on_not_exists*/);
+    // RC rc2 = delete_entry_of_indexes(record.data(), record.rid(), false/*error_on_not_exists*/);
+    RC rc2 = RC::SUCCESS;
     if (rc2 != RC::SUCCESS) {
       LOG_ERROR("Failed to rollback index data when insert index entries failed. table name=%s, rc=%d:%s",
                 name(), rc2, strrc(rc2));
     }
+    std::cout<<"delete record.data: "<<record.data()<<"\t"<<record.rid().page_num<<" "<<record.rid().slot_num<<std::endl;
+
     rc2 = record_handler_->delete_record(&record.rid());
     if (rc2 != RC::SUCCESS) {
       LOG_PANIC("Failed to rollback record data when insert index entries failed. table name=%s, rc=%d:%s",
@@ -529,6 +535,7 @@ RC Table::insert_entry_of_indexes(const char *record, const RID &rid)
   for (Index *index : indexes_) {
     rc = index->insert_entry(record, &rid);
     if (rc != RC::SUCCESS) {
+      std::cout<<"insert failed!"<<std::endl;
       break;
     }
   }
@@ -541,6 +548,7 @@ RC Table::delete_entry_of_indexes(const char *record, const RID &rid, bool error
   for (Index *index : indexes_) {
     rc = index->delete_entry(record, &rid);
     if (rc != RC::SUCCESS) {
+      std::cout<<"delete failed!"<<std::endl;
       if (rc != RC::RECORD_INVALID_KEY || !error_on_not_exists) {
         break;
       }
