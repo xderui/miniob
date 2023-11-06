@@ -49,6 +49,9 @@ RC UpdatePhysicalOperator::next()
     return RC::RECORD_EOF;
   }
 
+  std::vector<Record> delete_record;
+  std::vector<Record> insert_record;
+
   PhysicalOperator *child = children_[0].get();
   while (RC::SUCCESS == (rc = child->next())){
     Tuple *tuple = child->current_tuple();
@@ -61,7 +64,9 @@ RC UpdatePhysicalOperator::next()
 
     // rc = trx_->update_record(table_, record);
     // 修改record
-    rc = trx_->delete_record(table_, record);
+    // rc = trx_->delete_record(table_, record);
+    delete_record.emplace_back(record);
+    rc = RC::SUCCESS;
     if (rc != RC::SUCCESS){
       LOG_WARN("failed to delete record: %s", strrc(rc));
       return rc;
@@ -106,12 +111,22 @@ RC UpdatePhysicalOperator::next()
       Record new_record;
       RC rc = table_->make_record(cell_num, values.data(), new_record);
 
-      rc = trx_->insert_record(table_, new_record);
+      // rc = trx_->insert_record(table_, new_record);
+      insert_record.emplace_back(new_record);
       if (rc != RC::SUCCESS) {
         LOG_WARN("failed to insert record: %s", strrc(rc));
         return rc;
       }
     }
+  }
+
+
+  for (int i=0;i<delete_record.size();++i){
+    trx_->delete_record(table_,delete_record[i]);
+  }
+
+  for (int i=0;i<insert_record.size();++i){
+    trx_->insert_record(table_,insert_record[i]);
   }
 
   return RC::RECORD_EOF;
