@@ -13,7 +13,7 @@
 class UpdateLogicalOperator : public LogicalOperator
 {
 public:
-  UpdateLogicalOperator(Table *table, Field field, Value value);
+  UpdateLogicalOperator(Table *table, std::vector<Field> fields, std::vector<Value> values);
   virtual ~UpdateLogicalOperator() = default;
 
   LogicalOperatorType type() const override
@@ -22,11 +22,11 @@ public:
   }
 
   Table *table() const { return table_; }
-  const Field field() const { return field_;}
-  const Value value() const{ return value_;}
+  std::vector<Field> fields() const { return fields_;}
+  std::vector<Value> values() const{ return values_;}
 
 private:
   Table *table_ = nullptr;
-  Field field_;
-  Value value_;
+  std::vector<Field> fields_;
+  std::vector<Value> values_;
 };

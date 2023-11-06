@@ -1563,6 +1563,10 @@ RC BplusTreeHandler::insert_entry(const char *user_key, std::vector<FieldMeta> &
 
   char *key = static_cast<char *>(pkey.get());
 
+  std::cout<<"insert entry"<<std::endl;
+  std::cout<<rid->page_num<<" "<<rid->slot_num<<std::endl;
+  
+
   if (is_empty()) {
     root_lock_.lock();
     if (is_empty()) {

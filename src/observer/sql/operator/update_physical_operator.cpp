@@ -20,8 +20,8 @@ See the Mulan PSL v2 for more details. */
 
 using namespace std;
 
-UpdatePhysicalOperator::UpdatePhysicalOperator(Table *table, Field field, Value value)
-    : table_(table), field_(field), value_(value)
+UpdatePhysicalOperator::UpdatePhysicalOperator(Table *table, std::vector<Field> fields, std::vector<Value> values)
+    : table_(table), fields_(fields), values_(values)
 {}
 
 RC UpdatePhysicalOperator::open(Trx *trx)
@@ -65,7 +65,7 @@ RC UpdatePhysicalOperator::next()
 
     // rc = trx_->update_record(table_, record);
     // 修改record
-    // rc = trx_->delete_record(table_, record);
+    rc = trx_->delete_record(table_, record);
     delete_record.emplace_back(record);
     rc = RC::SUCCESS;
     if (rc != RC::SUCCESS){
@@ -74,40 +74,57 @@ RC UpdatePhysicalOperator::next()
     }else{
       // 定位列名索引
       const std::vector<FieldMeta> *table_field_metas = table_->table_meta().field_metas();
-      const char *target_field_name= field_.field_name();
-      // std::vector<FieldMeta>::iterator iter;
-      // for (iter=table_field_metas->begin(); iter<table_field_metas->end();++iter){
-      //   FieldMeta fieldmeta = *iter;
-      //   if (0 == strcmp(target_field_meta, fieldmeta.name())){
-      //     target_index = 
-      //   }
-      // }
-      int meta_num = table_field_metas->size();
-      int target_index = -1;
-      for (int i=0; i<meta_num; ++i){
-        FieldMeta fieldmeta = (*table_field_metas)[i];
-        // FieldMeta *fieldmeta = table_field_metas[i];
-        const char *field_name = fieldmeta.name();
-        if (0 == strcmp(field_name, target_field_name)){
-          target_index = i;
-          break;
+      
+      std::vector<int> field_idx;
+
+      for (auto field_:fields_){
+        
+        const char *target_field_name= field_.field_name();
+
+        int meta_num = table_field_metas->size();
+        int target_index = -1;
+        for (int i=0; i<meta_num; ++i){
+          FieldMeta fieldmeta = (*table_field_metas)[i];
+          // FieldMeta *fieldmeta = table_field_metas[i];
+          const char *field_name = fieldmeta.name();
+          if (0 == strcmp(field_name, target_field_name)){
+            target_index = i;
+            break;
+          }
         }
+
+        if (target_index == -1){
+          LOG_WARN("failed to find index");
+          return RC::INTERNAL;
+        }
+
+        field_idx.emplace_back(target_index);
       }
-      // 重新构造record
-      // 1. Values
+
       std::vector<Value> values;
       int cell_num = row_tuple->cell_num() - 1;
       for (int i=0; i < cell_num; ++i){
         Value cell;
-        if (target_index == i){
-          cell.set_value(value_);
+        // find field_index
+        int find_flag = -1;
+        for (int k=0;k<field_idx.size();++k){
+          int target_index = field_idx[k];
+          if (target_index == i){
+            // cell.set_value(values_[k]);
+            find_flag = k;
+            break;
+          } 
+        }
 
+        if (find_flag !=-1){
+          cell.set_value(values_[find_flag]);
+        }else{
+          row_tuple->cell_at(i,cell);
         }
-        else{
-          row_tuple->cell_at(i, cell);
-        }
+
         values.emplace_back(cell);
       }
+
       // 2. Record
 
       // rc = trx_->insert_record(table_, new_record);
@@ -118,10 +135,10 @@ RC UpdatePhysicalOperator::next()
         LOG_WARN("failed to make record. rc=%s", strrc(rc));
         return rc;
       }
-      
+
       insert_record.emplace_back(new_record);
 
-      // rc = trx_->insert_record(table_, new_record);
+      rc = trx_->insert_record(table_, new_record);
       if (rc != RC::SUCCESS) {
         LOG_WARN("failed to insert record: %s", strrc(rc));
         return rc;
@@ -130,13 +147,13 @@ RC UpdatePhysicalOperator::next()
   }
 
 
-  for (int i=0;i<delete_record.size();++i){
-    trx_->delete_record(table_,delete_record[i]);
-  }
+  // for (int i=0;i<delete_record.size();++i){
+  //   trx_->delete_record(table_,delete_record[i]);
+  // }
 
-  for (int i=0;i<insert_record.size();++i){
-    trx_->insert_record(table_,insert_record[i]);
-  }
+  // for (int i=0;i<insert_record.size();++i){
+  //   trx_->insert_record(table_,insert_record[i]);
+  // }
 
   return RC::RECORD_EOF;
 

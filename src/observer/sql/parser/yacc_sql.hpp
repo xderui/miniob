@@ -143,6 +143,8 @@ union YYSTYPE
   std::vector<Expression *> *       expression_list;
   std::vector<Value> *              value_list;
   std::vector<ConditionSqlNode> *   condition_list;
+  std::vector<UpdateValueSqlNode> *      update_value_list;
+  UpdateValueSqlNode*                    update_value;
   std::vector<RelAttrSqlNode> *     rel_attr_list;
   std::vector<std::pair<RelAttrSqlNode, OrderOp>>* order_by_list;
   std::vector<std::string> *        relation_list;
@@ -151,7 +153,7 @@ union YYSTYPE
   float                             floats;
   bool                              boolean;
 
-#line 155 "yacc_sql.hpp"
+#line 157 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;

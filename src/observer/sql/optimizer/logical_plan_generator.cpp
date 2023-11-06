@@ -243,8 +243,8 @@ RC LogicalPlanGenerator::create_plan(
   Table *table = update_stmt->table();
 
   // 首先创建select和filter算子
-  std::vector<Field> fields;
-  fields.emplace_back(update_stmt->field());
+  std::vector<Field> fields(update_stmt->fields());
+  // fields.emplace_back(update_stmt->field());
   unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, fields, false));
   
   // 过滤算子
@@ -255,7 +255,7 @@ RC LogicalPlanGenerator::create_plan(
     return rc;
   }
 
-  unique_ptr<LogicalOperator> update_oper(new UpdateLogicalOperator(table, update_stmt->field(), update_stmt->value()));
+  unique_ptr<LogicalOperator> update_oper(new UpdateLogicalOperator(table, update_stmt->fields(), update_stmt->values()));
 
 
   if (filter_oper){

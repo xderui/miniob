@@ -82,6 +82,8 @@ public:
    * @param record[in/out] 传入的数据包含具体的数据，插入成功会通过此字段返回RID
    */
   RC insert_record(Record &record);
+  RC insert_record(Record &old_record, Record &record);
+
   RC delete_record(const Record &record);
   // 更新
   RC update_record(Record &record);

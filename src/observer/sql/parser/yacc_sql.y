@@ -130,6 +130,8 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
   std::vector<Expression *> *       expression_list;
   std::vector<Value> *              value_list;
   std::vector<ConditionSqlNode> *   condition_list;
+  std::vector<UpdateValueSqlNode> *      update_value_list;
+  UpdateValueSqlNode*                    update_value;
   std::vector<RelAttrSqlNode> *     rel_attr_list;
   std::vector<std::pair<RelAttrSqlNode, OrderOp>>* order_by_list;
   std::vector<std::string> *        relation_list;
@@ -158,6 +160,8 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <orderOp>             order_op
 %type <order_by_list>       order_by_list
 %type <order_by_list>       order_by
+%type <update_value_list>   update_value_list
+%type <update_value>        update_value
 %type <rel_attr>            rel_attr
 %type <rel_attr>            aggr_attr
 %type <rel_attr>            rel_aggr_attr
@@ -496,20 +500,60 @@ delete_stmt:    /*  delete 语句的语法解析树*/
     }
     ;
 update_stmt:      /*  update 语句的语法解析树*/
-    UPDATE ID SET ID EQ value where 
+    UPDATE ID SET update_value_list where 
     {
       $$ = new ParsedSqlNode(SCF_UPDATE);
       $$->update.relation_name = $2;
-      $$->update.attribute_name = $4;
-      $$->update.value = *$6;
-      if ($7 != nullptr) {
-        $$->update.conditions.swap(*$7);
-        delete $7;
+
+      for (auto node: *$4) {
+        $$->update.attribute_names.push_back(node.attribute_name);
+        $$->update.values.push_back(node.value);
+      }
+      // for (int i = 0; i < $4->size(); i++)
+      // {
+      //   $$->update.attribute_names.push_back((($4)[i]).attribute_name);
+      //   $$->update.values.push_back((($4)[i]).value);
+      // }
+
+      if ($5 != nullptr) {
+        $$->update.conditions.swap(*$5);
+        delete $5;
       }
       free($2);
-      free($4);
+      //free($4);
     }
     ;
+  
+update_value:
+  ID EQ value
+  {
+    $$ = new UpdateValueSqlNode;
+    $$->attribute_name = $1;
+    $$->value = *$3;
+  }
+  ;
+
+update_value_list:
+  /* empty */
+  {
+    $$ = nullptr;
+  }
+  | update_value 
+  {
+      $$ = new std::vector<UpdateValueSqlNode>;
+      $$->emplace_back(*$1);
+      delete $1;
+  }
+  | update_value COMMA update_value_list 
+  {
+    $$ = $3;
+    $$->emplace_back(*$1);
+    delete $1;
+  }
+  ; 
+
+
+
 select_stmt:        /*  select 语句的语法解析树*/
     SELECT select_attr FROM ID rel_list join_list where order_by
     {
