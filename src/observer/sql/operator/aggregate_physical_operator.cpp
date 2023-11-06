@@ -42,21 +42,42 @@ RC AggregatePhysicalOperator::next()
       Value cell;
       AttrType attr_type = AttrType::INTS;
       switch (aggregation) {
-        case AggrOp::AGGR_COUNT:
         case AggrOp::AGGR_COUNT_ALL:
+        if (count == 0) {
+          result_cells.push_back(Value(0));
+          LOG_TRACE("init count. count=0");
+        }
+        result_cells[cell_idx].set_int(result_cells[cell_idx].get_int() + 1);
+        LOG_TRACE("update count. count=%s", result_cells[cell_idx].to_string().c_str());
+        break;
+        case AggrOp::AGGR_COUNT:
+          rc = tuple->cell_at(cell_idx, cell);
           if (count == 0) {
+            if (cell.attr_type() == NULLS) {
+              count--;
+              break;
+            }
             result_cells.push_back(Value(0));
             LOG_TRACE("init count. count=0");
           }
-          result_cells[cell_idx].set_int(result_cells[cell_idx].get_int() + 1);
-          LOG_TRACE("update count. count=%s", result_cells[cell_idx].to_string().c_str());
+          if (cell.attr_type() == NULLS) {
+            count--;
+            break;
+          } else {
+            result_cells[cell_idx].set_int(result_cells[cell_idx].get_int() + 1);
+            LOG_TRACE("update count. count=%s", result_cells[cell_idx].to_string().c_str());
+          }
           break;
         case AggrOp::AGGR_MAX:
           rc = tuple->cell_at(cell_idx, cell);
           if (count == 0) {
+            if (cell.attr_type() == NULLS) {
+              count--;
+              break;
+            }
             result_cells.push_back(cell);
             LOG_TRACE("init max. max=%s", result_cells[cell_idx].to_string().c_str());
-          } else if (cell.compare(result_cells[cell_idx]) > 0) {
+          } else if (cell.attr_type() != NULLS && cell.compare(result_cells[cell_idx]) > 0) {
             result_cells[cell_idx] = cell;
             LOG_TRACE("update max. max=%s", result_cells[cell_idx].to_string().c_str());
           }
@@ -64,9 +85,13 @@ RC AggregatePhysicalOperator::next()
         case AggrOp::AGGR_MIN:
           rc = tuple->cell_at(cell_idx, cell);
           if (count == 0) {
+            if (cell.attr_type() == NULLS) {
+              count--;
+              break;
+            }
             result_cells.push_back(cell);
             LOG_TRACE("init min. min=%s", result_cells[cell_idx].to_string().c_str());
-          } else if (cell.compare(result_cells[cell_idx]) < 0) {
+          } else if (cell.attr_type() != NULLS && cell.compare(result_cells[cell_idx]) < 0) {
             result_cells[cell_idx] = cell;
             LOG_TRACE("update min. min=%s", result_cells[cell_idx].to_string().c_str());
           }
@@ -76,8 +101,16 @@ RC AggregatePhysicalOperator::next()
           rc = tuple->cell_at(cell_idx, cell);
           attr_type = cell.attr_type();
           if (count == 0) {
+            if (cell.attr_type() == NULLS) {
+              count--;
+              break;
+            }
             result_cells.push_back(Value(0.0f));
             LOG_TRACE("init sum/avg. sum=%s", result_cells[cell_idx].to_string().c_str());
+          }
+          if (attr_type == NULLS) {
+            count--;
+            break;
           }
           if (attr_type == AttrType::INTS or attr_type == AttrType::FLOATS) {
             result_cells[cell_idx].set_float(result_cells[cell_idx].get_float() + cell.get_float());
@@ -92,6 +125,9 @@ RC AggregatePhysicalOperator::next()
 
     count++;
   }
+  // if (result_cells.size() == 0) {
+  //   result_cells.push_back(Value(0));
+  // }
   if (rc == RC::RECORD_EOF) {
     rc = RC::SUCCESS;
   }
@@ -101,6 +137,24 @@ RC AggregatePhysicalOperator::next()
     if (aggr == AggrOp::AGGR_AVG) {
       result_cells[cell_idx].set_float(result_cells[cell_idx].get_float() / count);
       LOG_TRACE("update avg. avg=%s", result_cells[cell_idx].to_string().c_str());
+    }
+  }
+  for (int cell_idx = 0; cell_idx < aggregations_.size(); cell_idx++) {
+    const AggrOp aggr = aggregations_[cell_idx];
+    if (result_cells.size() == 0 && aggr == AggrOp::AGGR_COUNT) {
+      result_cells.push_back(Value(0));
+    }
+    if (result_cells.size() == 0 && aggr == AggrOp::AGGR_MAX) {
+      result_cells.push_back(Value(NULL_VALUE, 1));
+    }
+    if (result_cells.size() == 0 && aggr == AggrOp::AGGR_MIN) {
+      result_cells.push_back(Value(NULL_VALUE, 1));
+    }
+    if (result_cells.size() == 0 && aggr == AggrOp::AGGR_SUM) {
+      result_cells.push_back(Value(NULL_VALUE, 1));
+    }
+    if (result_cells.size() == 0 && aggr == AggrOp::AGGR_AVG) {
+      result_cells.push_back(Value(NULL_VALUE, 1));
     }
   }
   result_tuple_.set_cells(result_cells);

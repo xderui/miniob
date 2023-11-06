@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # readlink -f cannot work on mac
-TOPDIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+TOPDIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd) 
 
 BUILD_SH=$TOPDIR/build.sh
 

@@ -148,6 +148,10 @@ RC SessionStage::handle_sql(SQLStageEvent *sql_event)
     return rc;
   }
   
+  // 为了order-by，将语法分析后的order_rules写入SqlResult，使得后续的Communicator可以访问
+  SessionEvent *session_event = sql_event->session_event();
+  SqlResult* sql_result = session_event->sql_result();
+  sql_result->order_rules = (*(sql_event->sql_node())).selection.order_rules;
 
   rc = resolve_stage_.handle_request(sql_event);
   if (OB_FAIL(rc)) {

@@ -195,12 +195,27 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
   }
 
   const TupleSchema &schema = sql_result->tuple_schema();
-  const int cell_num = schema.cell_num();
+  int cell_num = schema.cell_num();
+
+  // 增加bitmap列后，如果是联表查询，那么结果会出现多个bitmap列
+  // 存储每个bitmap的索引，后续投影时忽略
+  std::vector<int> ignored_index;
 
   for (int i = 0; i < cell_num; i++) {
     const TupleCellSpec &spec = schema.cell_at(i);
     const char *alias = spec.alias();
-    if (nullptr != alias || alias[0] != 0) {
+    // std::cout  << spec.table_name() << " & " << spec.field_name() << " & " << spec.alias() << std::endl;
+
+    if (strcmp(alias, NULL_FIELD_NAME.c_str()) == 0 || strcmp(spec.field_name(), NULL_FIELD_NAME.c_str()) == 0){
+      ignored_index.push_back(i);
+    }
+
+
+    bool ffflag = false;
+    if(ignored_index.size() != 0 && ignored_index[ignored_index.size() - 1] == i){
+      ffflag = true;
+    }
+    if (!ffflag && (nullptr != alias || alias[0] != 0)) {
       if (0 != i) {
         const char *delim = " | ";
         rc = writer_->writen(delim, strlen(delim));
@@ -211,6 +226,7 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
       }
 
       int len = strlen(alias);
+
       rc = writer_->writen(alias, len);
       if (OB_FAIL(rc)) {
         LOG_WARN("failed to send data to client. err=%s", strerror(errno));
@@ -230,16 +246,98 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
     }
   }
 
+
+
   rc = RC::SUCCESS;
   Tuple *tuple = nullptr;
-  while (RC::SUCCESS == (rc = sql_result->next_tuple(tuple))) {
-    assert(tuple != nullptr);
 
-    int cell_num = tuple->cell_num();
-    for (int i = 0; i < cell_num; i++) {
-      if (i != 0) {
-        const char *delim = " | ";
-        rc = writer_->writen(delim, strlen(delim));
+  auto order_rules = sql_result->order_rules;
+  /* 为了实现order by， 不得已只能在这里修改了  */
+
+  if (order_rules.size() > 0)
+  {
+    // 获得排序列的索引与标识
+    std::vector<int> order_index;
+    std::vector<OrderOp> order_op;
+
+    for(std::pair<RelAttrSqlNode, OrderOp> it: order_rules) 
+    {
+      order_op.push_back(it.second);
+      for(int i = 0; i < cell_num; i++){
+        const TupleCellSpec &spec = schema.cell_at(i);
+        if(  (strlen(spec.table_name()) == 0 && strcmp(spec.alias(), it.first.attribute_name.c_str()) == 0 )
+          || ((strcmp(spec.table_name(), it.first.relation_name.c_str()) == 0) && strcmp(spec.field_name(), it.first.attribute_name.c_str()) == 0)
+        )
+        {
+          order_index.push_back(i);
+          break;
+        }
+      }
+    }
+
+    // 取出全部Tuple
+    std::vector<std::vector<Value>> tuple_set;
+    while (RC::SUCCESS == (rc = sql_result->next_tuple(tuple))) {
+      std::vector<Value> temp;
+      int num_cell = tuple->cell_num();
+      for(int i = 0; i < num_cell; i++){
+        Value cell;
+        tuple->cell_at(i, cell);
+        temp.push_back(cell);
+      }
+      tuple_set.push_back(temp);    
+    }
+
+    // 排序
+    std::sort(tuple_set.begin(), tuple_set.end(), 
+      [order_index, order_op](std::vector<Value>& t1, std::vector<Value>& t2){
+        for (int i = 0; i < order_index.size(); i++)
+        {
+          int target_index = order_index[i];
+          Value v1 = t1[target_index];
+          Value v2 = t2[target_index];
+          if (v1.attr_type() == NULLS && v2.attr_type() == NULLS) {
+            continue;
+          }
+          int ret = v1.compare(v2);
+          if (ret != 0)
+          {
+            return (order_op[i] == ORDER_ASC || order_op[i] == ORDER_DEFAULT) ? ret <= 0 : ret >= 0;
+          }
+        }
+        return true;
+      }
+    );
+
+    // 输出
+    for(int i = 0; i < tuple_set.size(); i++){
+      for(int j = 0; j < tuple_set[i].size(); j++)
+      {
+
+        // 忽略bitmap列
+        bool need_ignore = false;
+        for (int t = 0; t < ignored_index.size(); t++) {
+          if (j == ignored_index[t]) {
+            need_ignore = true;
+            break;
+          }
+        }
+        if(need_ignore)
+          continue;
+
+
+        if (j != 0) {
+          const char *delim = " | ";
+          rc = writer_->writen(delim, strlen(delim));
+          if (OB_FAIL(rc)) {
+            LOG_WARN("failed to send data to client. err=%s", strerror(errno));
+            sql_result->close();
+            return rc;
+          }
+        }
+
+        std::string cell_str = tuple_set[i][j].to_string();
+        rc = writer_->writen(cell_str.data(), cell_str.size());
         if (OB_FAIL(rc)) {
           LOG_WARN("failed to send data to client. err=%s", strerror(errno));
           sql_result->close();
@@ -247,15 +345,60 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
         }
       }
 
-      Value value;
-      rc = tuple->cell_at(i, value);
-      if (rc != RC::SUCCESS) {
+      char newline = '\n';
+      rc = writer_->writen(&newline, 1);
+      if (OB_FAIL(rc)) 
+      {
+        LOG_WARN("failed to send data to client. err=%s", strerror(errno));
         sql_result->close();
         return rc;
       }
+    }
+  }
+  else {
 
-      std::string cell_str = value.to_string();
-      rc = writer_->writen(cell_str.data(), cell_str.size());
+    while (RC::SUCCESS == (rc = sql_result->next_tuple(tuple))) {
+      assert(tuple != nullptr);
+
+      int cell_num = tuple->cell_num();
+      for (int i = 0; i < cell_num; i++) {
+        bool need_ignore = false;
+        for (int t = 0; t < ignored_index.size(); t++) {
+          if (ignored_index[t] == i) {
+            need_ignore = true;
+            break;
+          }
+        }
+        if(need_ignore)
+          continue;
+        if (i != 0) {
+          const char *delim = " | ";
+          rc = writer_->writen(delim, strlen(delim));
+          if (OB_FAIL(rc)) {
+            LOG_WARN("failed to send data to client. err=%s", strerror(errno));
+            sql_result->close();
+            return rc;
+          }
+        }
+
+        Value value;
+        rc = tuple->cell_at(i, value);
+        if (rc != RC::SUCCESS) {
+          sql_result->close();
+          return rc;
+        }
+
+        std::string cell_str = value.to_string();
+        rc = writer_->writen(cell_str.data(), cell_str.size());
+        if (OB_FAIL(rc)) {
+          LOG_WARN("failed to send data to client. err=%s", strerror(errno));
+          sql_result->close();
+          return rc;
+        }
+      }
+
+      char newline = '\n';
+      rc = writer_->writen(&newline, 1);
       if (OB_FAIL(rc)) {
         LOG_WARN("failed to send data to client. err=%s", strerror(errno));
         sql_result->close();
@@ -263,13 +406,6 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
       }
     }
 
-    char newline = '\n';
-    rc = writer_->writen(&newline, 1);
-    if (OB_FAIL(rc)) {
-      LOG_WARN("failed to send data to client. err=%s", strerror(errno));
-      sql_result->close();
-      return rc;
-    }
   }
 
   if (rc == RC::RECORD_EOF) {

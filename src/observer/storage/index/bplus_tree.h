@@ -106,6 +106,9 @@ public:
           if (res!=0) return res;
           break;
         } 
+        case NULLS: {
+          return 1;
+        }
         default: {
           ASSERT(false, "unknown attr type. %d", attr_types_[i]);
           // return 0;
@@ -144,7 +147,6 @@ public:
 
   int operator()(const char *v1, const char *v2) const
   {
-
     int result = attr_comparator_(v1, v2);
     if (unique_ || result != 0) {
       return result;
@@ -240,6 +242,12 @@ public:
           }
           return str;
         } break;
+        case NULLS: {
+          char* tmp = new char[attr_lengths_[k]+1];
+          memset(tmp, 0, sizeof(char)*(attr_lengths_[k]+1));
+          memcpy(tmp, v+allocate_idx, attr_lengths_[k]);
+          return std::to_string(*(int *)tmp);
+        }
         case DATES: {
           char* tmp = new char[attr_lengths_[k]+1];
           memset(tmp, 0, sizeof(char)*(attr_lengths_[k]+1));

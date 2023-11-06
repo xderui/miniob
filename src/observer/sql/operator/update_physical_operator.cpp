@@ -16,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/insert_stmt.h"
 #include "storage/table/table.h"
 #include "storage/trx/trx.h"
+#include "sql/operator/insert_physical_operator.h"
 
 using namespace std;
 
@@ -95,7 +96,7 @@ RC UpdatePhysicalOperator::next()
       // 重新构造record
       // 1. Values
       std::vector<Value> values;
-      int cell_num = row_tuple->cell_num();
+      int cell_num = row_tuple->cell_num() - 1;
       for (int i=0; i < cell_num; ++i){
         Value cell;
         if (target_index == i){
@@ -108,11 +109,19 @@ RC UpdatePhysicalOperator::next()
         values.emplace_back(cell);
       }
       // 2. Record
-      Record new_record;
-      RC rc = table_->make_record(cell_num, values.data(), new_record);
 
       // rc = trx_->insert_record(table_, new_record);
+      
+      Record new_record;
+      RC rc = table_->make_record(static_cast<int>(values.size()), values.data(), new_record);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("failed to make record. rc=%s", strrc(rc));
+        return rc;
+      }
+      
       insert_record.emplace_back(new_record);
+
+      // rc = trx_->insert_record(table_, new_record);
       if (rc != RC::SUCCESS) {
         LOG_WARN("failed to insert record: %s", strrc(rc));
         return rc;

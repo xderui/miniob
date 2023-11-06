@@ -64,10 +64,15 @@ public:
   {
     return state_string_;
   }
+  const PhysicalOperatorType get_physicalOperator_type() const 
+  {
+    return operator_->type();
+  }
 
   RC open();
   RC close();
   RC next_tuple(Tuple *&tuple);
+
 
 private:
   Session *session_ = nullptr; ///< 当前所属会话
@@ -75,4 +80,7 @@ private:
   TupleSchema tuple_schema_;   ///< 返回的表头信息。可能有也可能没有
   RC return_code_ = RC::SUCCESS;
   std::string state_string_;
+
+public:
+  std::vector<std::pair<RelAttrSqlNode, OrderOp>> order_rules;        // 很丑陋的代码
 };

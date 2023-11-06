@@ -170,10 +170,24 @@ public:
       LOG_WARN("invalid argument. index=%d", index);
       return RC::INVALID_ARGUMENT;
     }
+    
+    /**
+     * 在读取index对应的Value之前，需要读该行最后一个Value中的bitmap信息
+    */
+    Value _bitmap;
+    FieldExpr *field_bitmap = speces_[speces_.size() - 1];
+    const FieldMeta *filed_meta_bitmap = field_bitmap->field().meta();
+    _bitmap.set_type(filed_meta_bitmap->type());
+    _bitmap.set_data(this->record_->data() + filed_meta_bitmap->offset(), filed_meta_bitmap->len());
+    std::vector<int> bitmap = int2bitmap(_bitmap.get_int());
+
 
     FieldExpr *field_expr = speces_[index];
     const FieldMeta *field_meta = field_expr->field().meta();
-    cell.set_type(field_meta->type());
+    if(bitmap[index] == NULL_FLAG)
+      cell.set_type(NULLS);
+    else
+      cell.set_type(field_meta->type());
     cell.set_data(this->record_->data() + field_meta->offset(), field_meta->len());
     return RC::SUCCESS;
   }

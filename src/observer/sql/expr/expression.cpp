@@ -142,8 +142,18 @@ ComparisonExpr::~ComparisonExpr()
 RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &result) const
 {
   RC rc = RC::SUCCESS;
-  int cmp_result = left.compare(right);
   result = false;
+  // NULL和数值的运算符，结果永远false
+  if(
+    (left.attr_type() == NULLS || right.attr_type() == NULLS) &&
+    (comp_ == EQUAL_TO || comp_ == LESS_EQUAL || comp_ == NOT_EQUAL || comp_ == LESS_THAN || comp_ == GREAT_EQUAL || comp_ == GREAT_THAN)
+  ) {
+    result = false;
+    return rc;
+  }
+
+  
+  int cmp_result = left.compare(right);
   switch (comp_) {
     case EQUAL_TO: {
       result = (0 == cmp_result);
@@ -168,6 +178,12 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
     }break;
     case NOT_LIKE: {
       result = !isMatch(left, right);
+    }break;
+    case OP_ISNULL: {
+      result = fn_isNULL(left, right);
+    }break;
+    case OP_ISNOTNULL: {
+      result = fn_isNotNULL(left, right);
     }break;
     default: {
       LOG_WARN("unsupported comparison. %d", comp_);
@@ -386,4 +402,14 @@ RC ArithmeticExpr::try_get_value(Value &value) const
   }
 
   return calc_value(left_value, right_value, value);
+}
+
+
+bool fn_isNULL(Value left, Value right)
+{
+  return left.attr_type() == right.attr_type() && left.attr_type() == NULLS;
+}
+bool fn_isNotNULL(Value left, Value right)
+{
+  return (left.attr_type() == NULLS && right.attr_type() != NULLS) || (left.attr_type() != NULLS && right.attr_type() == NULLS);
 }
