@@ -86,7 +86,6 @@ RC IndexScanPhysicalOperator::open(Trx *trx)
     right_lengths += right_values_[i].length();
   }
 
-  std::cout<<std::endl;
 
   // IndexScanner *index_scanner = index_->create_scanner(left_value_.data(),
   //     left_value_.length(),

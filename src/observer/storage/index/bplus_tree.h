@@ -81,16 +81,9 @@ public:
   int operator()(const char *v1, const char *v2) const
   {
     int offset = 0;
-    std::cout<<"start comparing, ATTR_LENGTH="<<attr_lengths_.size()<<std::endl;
 
-    // std::cout<<"check types"<<std::endl;
-    // for (int i=0;i<attr_lengths_.size();++i) std::cout<<attr_lengths_[i]<<std::endl;
-    std::cout<<"check in operator"<<std::endl;
-    for (int i=0;i<attr_lengths_.size();++i) std::cout<<*(int *)(v1+attr_lengths_[i])<<" "<<*(int *)(v2+attr_lengths_[i])<<std::endl;
-    std::cout<<"check finished!"<<std::endl;
 
     for (int i=0;i<attr_lengths_.size();++i){
-      std::cout<<"start comparing:"<<offset<<std::endl;
       int res=-1;
       switch (attr_types_[i]) {
         case INTS: {
@@ -118,7 +111,6 @@ public:
           // return 0;
         }
       }
-      std::cout<<"com_res:"<<res<<endl;
       offset += attr_lengths_[i];
 
     }
@@ -152,25 +144,20 @@ public:
 
   int operator()(const char *v1, const char *v2) const
   {
-    std::cout<<"Key-value COmparaing"<<std::endl;
 
     int result = attr_comparator_(v1, v2);
     if (unique_ || result != 0) {
       return result;
     }
 
-    std::cout<<"result:"<<result<<std::endl;
 
-    std::cout<<"operator_rid"<<std::endl;
     std::vector<int> attr_lengths(attr_comparator_.attr_lengths());
 
     int allocate_idx = 0;
     for (int i=0;i<attr_lengths.size();++i){
-      std::cout<<*(int *)(v1+allocate_idx)<<" "<<*(int *)(v2+allocate_idx)<<" "<<attr_lengths[i]<<std::endl;
       allocate_idx += attr_lengths[i];
     }
 
-    std::cout<<"finished"<<std::endl;
 
     // const RID *rid1 = (const RID *)(v1 + attr_comparator_.attr_length());
     // const RID *rid2 = (const RID *)(v2 + attr_comparator_.attr_length());

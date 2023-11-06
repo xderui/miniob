@@ -147,21 +147,12 @@ RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, u
     }
   }
 
-  std::cout << "index search"<<std::endl;
-  for (int i=0; i<fields.size();++i){
-    std::cout<<fields[i]<<" ";
-  }
-  std::cout<<"search finished!"<<std::endl;
-
   index = table->find_index_by_fields(fields);
 
   if (index != nullptr) {    // 通过索引获得表
     ASSERT(value_expr != nullptr, "got an index but value expr is null ?");
 
-    std::cout<<"exists index"<<std::endl;
-
     const Value &value = value_expr->get_value();
-    std::cout<<"index_ value:"<<std::endl;
     IndexScanPhysicalOperator *index_scan_oper = new IndexScanPhysicalOperator(
           table, index, table_get_oper.readonly(), 
           values, true /*left_inclusive*/, 

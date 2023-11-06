@@ -137,7 +137,6 @@ IndexScanner *BplusTreeIndex::create_scanner(
     const char *left_key, int left_len, bool left_inclusive, const char *right_key, int right_len, bool right_inclusive)
 {
   BplusTreeIndexScanner *index_scanner = new BplusTreeIndexScanner(index_handler_);
-  std::cout<<left_key<<" "<<left_len<<":"<<right_key<<" "<<right_len<<std::endl;
   RC rc = index_scanner->open(left_key, left_len, left_inclusive, right_key, right_len, right_inclusive);  // left_key and right_key 应该指向多个属性值
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to open index scanner. rc=%d:%s", rc, strrc(rc));
