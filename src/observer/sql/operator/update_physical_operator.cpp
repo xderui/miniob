@@ -18,6 +18,9 @@ See the Mulan PSL v2 for more details. */
 #include "storage/trx/trx.h"
 
 using namespace std;
+std::vector<Record> insert_records;
+std::vector<Record> delete_records;
+
 
 UpdatePhysicalOperator::UpdatePhysicalOperator(Table *table, Field field, Value value)
     : table_(table), field_(field), value_(value)
@@ -50,6 +53,10 @@ RC UpdatePhysicalOperator::next()
   }
 
   PhysicalOperator *child = children_[0].get();
+
+  
+  std::vector<Record> insert_records;
+  int count = 0;
   while (RC::SUCCESS == (rc = child->next())){
     Tuple *tuple = child->current_tuple();
     if (nullptr == tuple){
@@ -59,9 +66,12 @@ RC UpdatePhysicalOperator::next()
     RowTuple *row_tuple = static_cast<RowTuple *>(tuple);
     Record &record = row_tuple->record();
 
+
     // rc = trx_->update_record(table_, record);
     // 修改record
-    rc = trx_->delete_record(table_, record);
+    // rc = trx_->delete_record(table_, record);
+    delete_records.emplace_back(record);
+    RC rc = RC::SUCCESS;
     if (rc != RC::SUCCESS){
       LOG_WARN("failed to delete record: %s", strrc(rc));
       return rc;
@@ -105,11 +115,25 @@ RC UpdatePhysicalOperator::next()
       LOG_WARN("failed to make record. rc=%s", strrc(rc));
         return rc;
       }
-      rc = trx_->insert_record(table_, new_record);
-      if (rc != RC::SUCCESS) {
-        LOG_WARN("failed to insert record: %s", strrc(rc));
-        return rc;
-      }
+
+      insert_records.emplace_back(new_record);
+
+    }
+
+    std::cout<<"insert_record:"<<insert_records.size()<<std::endl;
+
+  }
+
+  for (int i=0;i<insert_records.size();++i){
+    rc = trx_->delete_record(table_, delete_records[i]);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to insert record: %s", strrc(rc));
+      return rc;
+    }
+    rc = trx_->insert_record(table_, insert_records[i]);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to insert record: %s", strrc(rc));
+      return rc;
     }
   }
 
@@ -119,6 +143,8 @@ RC UpdatePhysicalOperator::next()
 
 RC UpdatePhysicalOperator::close()
 {
+  
+
   if (!children_.empty()) {
     children_[0]->close();
   }
