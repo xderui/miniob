@@ -172,6 +172,11 @@ public:
    * @param data 要插入的数据行
    * @param rid  插入的位置
    */
+
+  // update
+  RC update_record(const char *data, RID *rid);
+
+
   RC recover_insert_record(const char *data, const RID &rid);
 
   /**

@@ -63,5 +63,5 @@ TrxKit *TrxKit::instance()
 
 RC Trx::redo(Db *db, const CLogRecord &)
 {
-  return RC::UNIMPLENMENT;
+  return RC::UNIMPLEMENT;
 }

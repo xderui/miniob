@@ -32,8 +32,13 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/join_physical_operator.h"
 #include "sql/operator/calc_logical_operator.h"
 #include "sql/operator/calc_physical_operator.h"
+#include "sql/operator/aggregate_logical_operator.h"
+#include "sql/operator/aggregate_physical_operator.h"
 #include "sql/expr/expression.h"
 #include "common/log/log.h"
+#include "sql/operator/update_logical_operator.h"
+#include "sql/operator/update_physical_operator.h"
+#include "physical_plan_generator.h"
 
 using namespace std;
 
@@ -58,6 +63,10 @@ RC PhysicalPlanGenerator::create(LogicalOperator &logical_operator, unique_ptr<P
       return create_plan(static_cast<ProjectLogicalOperator &>(logical_operator), oper);
     } break;
 
+    case LogicalOperatorType::AGGREGATE: {
+      return create_plan(static_cast<AggregateLogicalOperator &>(logical_operator), oper);
+    } break;
+
     case LogicalOperatorType::INSERT: {
       return create_plan(static_cast<InsertLogicalOperator &>(logical_operator), oper);
     } break;
@@ -74,6 +83,11 @@ RC PhysicalPlanGenerator::create(LogicalOperator &logical_operator, unique_ptr<P
       return create_plan(static_cast<JoinLogicalOperator &>(logical_operator), oper);
     } break;
 
+    // update
+    case LogicalOperatorType::UPDATE: {
+      return create_plan(static_cast<UpdateLogicalOperator &>(logical_operator), oper);
+    }
+
     default: {
       return RC::INVALID_ARGUMENT;
     }
@@ -89,6 +103,8 @@ RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, u
 
   Index *index = nullptr;
   ValueExpr *value_expr = nullptr;
+  std::vector<const char *> fields;
+  std::vector<Value> values;
   for (auto &expr : predicates) {
     if (expr->type() == ExprType::COMPARISON) {
       auto comparison_expr = static_cast<ComparisonExpr *>(expr.get());
@@ -120,21 +136,36 @@ RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, u
       }
 
       const Field &field = field_expr->field();
-      index = table->find_index_by_field(field.field_name());
+      fields.emplace_back(field.field_name());
+      values.emplace_back(*const_cast<Value *>(&value_expr->get_value()));
+      // index = table->find_index_by_fields();
+      
+      // index = table->find_index_by_field(field.field_name());
       if (nullptr != index) {
         break;
       }
     }
   }
 
-  if (index != nullptr) {
+  for (int i=0; i<fields.size();++i){
+  }
+
+  index = table->find_index_by_fields(fields);
+
+  if (index != nullptr) {    // 通过索引获得表
     ASSERT(value_expr != nullptr, "got an index but value expr is null ?");
+
 
     const Value &value = value_expr->get_value();
     IndexScanPhysicalOperator *index_scan_oper = new IndexScanPhysicalOperator(
           table, index, table_get_oper.readonly(), 
-          &value, true /*left_inclusive*/, 
-          &value, true /*right_inclusive*/);
+          values, true /*left_inclusive*/, 
+          values, true /*right_inclusive*/);
+
+    // IndexScanPhysicalOperator *index_scan_oper = new IndexScanPhysicalOperator(
+    //   table, index, table_get_oper.readonly(), 
+
+    // );
           
     index_scan_oper->set_predicates(std::move(predicates));
     oper = unique_ptr<PhysicalOperator>(index_scan_oper);
@@ -204,6 +235,37 @@ RC PhysicalPlanGenerator::create_plan(ProjectLogicalOperator &project_oper, uniq
   return rc;
 }
 
+RC PhysicalPlanGenerator::create_plan(AggregateLogicalOperator &aggregate_oper, unique_ptr<PhysicalOperator> &oper)
+{
+  vector<unique_ptr<LogicalOperator>> &children_opers = aggregate_oper.children();
+  ASSERT(children_opers.size() == 1, "aggregate logical operator's sub oper number should be 1");
+
+  LogicalOperator &child_oper = *children_opers.front();
+
+  unique_ptr<PhysicalOperator> child_phy_oper;
+  RC rc = create(child_oper, child_phy_oper);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to create child operator of predicate operator. rc=%s", strrc(rc));
+    return rc;
+  }
+
+  AggregatePhysicalOperator *aggregate_operator = new AggregatePhysicalOperator;
+  const vector<Field> &aggregate_fields = aggregate_oper.fields();
+  LOG_TRACE("got %d aggregation fields", aggregate_fields.size());
+  for (const Field &field : aggregate_fields) {
+    aggregate_operator->add_aggregation(field.aggregation());
+  }
+
+  if (child_phy_oper) {
+    aggregate_operator->add_child(std::move(child_phy_oper));
+  }
+
+  oper = unique_ptr<PhysicalOperator>(aggregate_operator);
+
+  LOG_TRACE("create an aggregate physical operator");
+  return rc;
+}
+
 RC PhysicalPlanGenerator::create_plan(InsertLogicalOperator &insert_oper, unique_ptr<PhysicalOperator> &oper)
 {
   Table *table = insert_oper.table();
@@ -215,14 +277,14 @@ RC PhysicalPlanGenerator::create_plan(InsertLogicalOperator &insert_oper, unique
 
 RC PhysicalPlanGenerator::create_plan(DeleteLogicalOperator &delete_oper, unique_ptr<PhysicalOperator> &oper)
 {
-  vector<unique_ptr<LogicalOperator>> &child_opers = delete_oper.children();
+  vector<unique_ptr<LogicalOperator>> &child_opers = delete_oper.children();  // 有子算子，需要先取出来
 
   unique_ptr<PhysicalOperator> child_physical_oper;
 
   RC rc = RC::SUCCESS;
   if (!child_opers.empty()) {
-    LogicalOperator *child_oper = child_opers.front().get();
-    rc = create(*child_oper, child_physical_oper);
+    LogicalOperator *child_oper = child_opers.front().get();     // 虽然delete操作有两个子算子，但实际上delete只有一个子算子
+    rc = create(*child_oper, child_physical_oper);              //  因为table_get是filter的子算子
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to create physical operator. rc=%s", strrc(rc));
       return rc;
@@ -231,8 +293,8 @@ RC PhysicalPlanGenerator::create_plan(DeleteLogicalOperator &delete_oper, unique
 
   oper = unique_ptr<PhysicalOperator>(new DeletePhysicalOperator(delete_oper.table()));
 
-  if (child_physical_oper) {
-    oper->add_child(std::move(child_physical_oper));
+  if (child_physical_oper) { 
+    oper->add_child(std::move(child_physical_oper));  // 与逻辑算子定义一样，需要添加子算子
   }
   return rc;
 }
@@ -292,3 +354,28 @@ RC PhysicalPlanGenerator::create_plan(CalcLogicalOperator &logical_oper, std::un
   return rc;
 }
 
+
+RC PhysicalPlanGenerator::create_plan(UpdateLogicalOperator &update_oper, unique_ptr<PhysicalOperator> &oper)
+{
+  vector<unique_ptr<LogicalOperator>> &child_opers = update_oper.children();
+
+  unique_ptr<PhysicalOperator> child_physical_oper;
+
+  RC rc = RC::SUCCESS;
+  if (!child_opers.empty()){
+    LogicalOperator *child_oper = child_opers.front().get();
+    rc = create(*child_oper, child_physical_oper);
+    if (rc != RC::SUCCESS){
+      return rc;
+    }
+  }
+
+  oper = unique_ptr<PhysicalOperator>(new UpdatePhysicalOperator(update_oper.table(),update_oper.field(), update_oper.value()));
+
+  if (child_physical_oper){
+    oper->add_child(std::move(child_physical_oper));
+  }
+
+  return rc;
+
+}

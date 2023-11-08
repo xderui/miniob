@@ -257,6 +257,13 @@ RC RecordPageHandler::delete_record(const RID *rid)
   }
 }
 
+// insert
+RC RecordPageHandler::update_record(const char *data, RID *rid){
+  Bitmap bitmap(bitmap_, page_header_->record_capacity);
+  return RC::SUCCESS;
+}
+
+
 RC RecordPageHandler::get_record(const RID *rid, Record *rec)
 {
   if (rid->slot_num >= page_header_->record_capacity) {
@@ -456,7 +463,10 @@ RC RecordFileHandler::get_record(RecordPageHandler &page_handler, const RID *rid
     return RC::INVALID_ARGUMENT;
   }
 
+  std::cout<<"get record"<<" "<<rid->page_num<<" "<<rid->slot_num<<std::endl;
+
   RC ret = page_handler.init(*disk_buffer_pool_, rid->page_num, readonly);
+
   if (OB_FAIL(ret)) {
     LOG_ERROR("Failed to init record page handler.page number=%d", rid->page_num);
     return ret;
@@ -470,6 +480,9 @@ RC RecordFileHandler::visit_record(const RID &rid, bool readonly, std::function<
   RecordPageHandler page_handler;
 
   RC rc = page_handler.init(*disk_buffer_pool_, rid.page_num, readonly);
+
+  std::cout<<"visit record"<<" "<<rid.page_num<<" "<<rid.slot_num<<std::endl;
+
   if (OB_FAIL(rc)) {
     LOG_ERROR("Failed to init record page handler.page number=%d", rid.page_num);
     return rc;

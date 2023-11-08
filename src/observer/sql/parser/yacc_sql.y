@@ -57,8 +57,10 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %token  SEMICOLON
         CREATE
         DROP
+        INNER
         TABLE
         TABLES
+        UNIQUE
         INDEX
         CALC
         SELECT
@@ -77,6 +79,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         INT_T
         STRING_T
         FLOAT_T
+        DATE_T
         HELP
         EXIT
         DOT //QUOTE
@@ -86,6 +89,11 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         WHERE
         AND
         SET
+        MAX
+        MIN
+        COUNT
+        AVG
+        SUM
         ON
         LOAD
         DATA
@@ -96,14 +104,19 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         GT
         LE
         GE
+        LKE
+        NOT
         NE
+        
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
   ParsedSqlNode *                   sql_node;
   ConditionSqlNode *                condition;
+  JoinSqlNode *                     join_sql_node;
   Value *                           value;
   enum CompOp                       comp;
+  enum AggrOp                       aggr;
   RelAttrSqlNode *                  rel_attr;
   std::vector<AttrInfoSqlNode> *    attr_infos;
   AttrInfoSqlNode *                 attr_info;
@@ -121,7 +134,9 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %token <number> NUMBER
 %token <floats> FLOAT
 %token <string> ID
+%token <string> DATE_STR
 %token <string> SSS
+%token <string> JOIN
 //非终结符
 
 /** type 定义了各种解析后的结果输出的是什么类型。类型对应了 union 中的定义的成员变量名称 **/
@@ -130,15 +145,21 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <value>               value
 %type <number>              number
 %type <comp>                comp_op
+%type <aggr>                aggr_op
 %type <rel_attr>            rel_attr
+%type <rel_attr>            aggr_attr
+%type <rel_attr>            rel_aggr_attr
+%type <rel_attr>            rel_attr_wildcard
 %type <attr_infos>          attr_def_list
 %type <attr_info>           attr_def
 %type <value_list>          value_list
 %type <condition_list>      where
+%type <join_sql_node>       join_list
 %type <condition_list>      condition_list
 %type <rel_attr_list>       select_attr
 %type <relation_list>       rel_list
-%type <rel_attr_list>       attr_list
+%type <rel_attr_list>       rel_attr_wildcard_list
+%type <rel_attr_list>       rel_aggr_attr_list
 %type <expression>          expression
 %type <expression_list>     expression_list
 %type <sql_node>            calc_stmt
@@ -257,16 +278,37 @@ desc_table_stmt:
     ;
 
 create_index_stmt:    /*create index 语句的语法解析树*/
-    CREATE INDEX ID ON ID LBRACE ID RBRACE
+    CREATE INDEX ID ON ID LBRACE ID rel_list RBRACE
     {
       $$ = new ParsedSqlNode(SCF_CREATE_INDEX);
       CreateIndexSqlNode &create_index = $$->create_index;
       create_index.index_name = $3;
       create_index.relation_name = $5;
-      create_index.attribute_name = $7;
+      if ($8 != nullptr) {
+        create_index.attribute_names.swap(*$8);
+      }
+      create_index.attribute_names.emplace_back($7);
+
+      create_index.unique = false;
       free($3);
       free($5);
       free($7);
+    }
+    | CREATE UNIQUE INDEX ID ON ID LBRACE ID rel_list RBRACE
+    {
+      $$ = new ParsedSqlNode(SCF_CREATE_INDEX);
+      CreateIndexSqlNode &create_index = $$->create_index;
+      create_index.index_name = $4;
+      create_index.relation_name = $6;
+      // create_index.attribute_name = $8;
+      if ($9 != nullptr){
+        create_index.attribute_names.swap(*$9);
+      }
+      create_index.attribute_names.emplace_back($8);
+      create_index.unique = true;
+      free($4);
+      free($6);
+      free($8);
     }
     ;
 
@@ -280,6 +322,7 @@ drop_index_stmt:      /*drop index 语句的语法解析树*/
       free($5);
     }
     ;
+
 create_table_stmt:    /*create table 语句的语法解析树*/
     CREATE TABLE ID LBRACE attr_def attr_def_list RBRACE
     {
@@ -299,6 +342,7 @@ create_table_stmt:    /*create table 语句的语法解析树*/
       delete $5;
     }
     ;
+
 attr_def_list:
     /* empty */
     {
@@ -342,6 +386,7 @@ type:
     INT_T      { $$=INTS; }
     | STRING_T { $$=CHARS; }
     | FLOAT_T  { $$=FLOATS; }
+    | DATE_T   { $$=DATES; }
     ;
 insert_stmt:        /*insert   语句的语法解析树*/
     INSERT INTO ID VALUES LBRACE value value_list RBRACE 
@@ -382,6 +427,11 @@ value:
       $$ = new Value((float)$1);
       @$ = @1;
     }
+    |DATE_STR {
+      char* tmp = common::substr($1, 1, strlen($1) - 2);
+      $$ = new Value(tmp, strlen(tmp), 1);
+      free(tmp);
+    }
     |SSS {
       char *tmp = common::substr($1,1,strlen($1)-2);
       $$ = new Value(tmp);
@@ -417,7 +467,7 @@ update_stmt:      /*  update 语句的语法解析树*/
     }
     ;
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT select_attr FROM ID rel_list where
+    SELECT select_attr FROM ID rel_list join_list where
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -431,13 +481,43 @@ select_stmt:        /*  select 语句的语法解析树*/
       $$->selection.relations.push_back($4);
       std::reverse($$->selection.relations.begin(), $$->selection.relations.end());
 
-      if ($6 != nullptr) {
-        $$->selection.conditions.swap(*$6);
-        delete $6;
+      if ($7 != nullptr) {
+        $$->selection.conditions.swap(*$7);
+        delete $7;
       }
       free($4);
+
+      if ($6 != nullptr) {
+        $$->selection.relations.insert($$->selection.relations.end(), $6->relations.begin(), $6->relations.end());
+        $$->selection.conditions.insert($$->selection.conditions.end(), $6->conditions.begin(), $6->conditions.end());
+        delete $6;
+      }
     }
+    // | SELECT select_attr FROM ID rel_list JOIN ID ON condition where
+    // {
+    //   $$ = new ParsedSqlNode(SCF_SELECT);
+    //   if ($2 != nullptr) {
+    //     $$->selection.attributes.swap(*$2);
+    //     delete $2;
+    //   }
+    //   if ($5 != nullptr) {
+    //     $$->selection.relations.swap(*$5);
+    //     delete $5;
+    //   }
+    //   $$->selection.relations.push_back($4);
+    //   $$->selection.relations.push_back($7);
+    //   free($4);
+    //   free($7);
+
+    //   if($10 != nullptr) {
+    //     $$->selection.conditions.swap(*$10);
+    //     delete $10;
+    //   }
+    //   $$->selection.conditions.emplace_back(*$9);
+    //   delete $9;
+    // }
     ;
+
 calc_stmt:
     CALC expression_list
     {
@@ -499,7 +579,7 @@ select_attr:
       attr.attribute_name = "*";
       $$->emplace_back(attr);
     }
-    | rel_attr attr_list {
+    | rel_aggr_attr rel_aggr_attr_list {
       if ($2 != nullptr) {
         $$ = $2;
       } else {
@@ -507,6 +587,82 @@ select_attr:
       }
       $$->emplace_back(*$1);
       delete $1;
+    }
+    ;
+
+aggr_attr:
+    aggr_op LBRACE rel_attr_wildcard rel_attr_wildcard_list RBRACE {
+      $$ = $3;
+      $$->aggregation = $1;
+      // redundant columns
+      if ($4 != nullptr) {
+        $$->valid = false;
+        delete $4;
+      }
+    }
+    | aggr_op LBRACE RBRACE {
+      $$ = new RelAttrSqlNode;
+      $$->relation_name = "";
+      $$->attribute_name = "";
+      $$->aggregation = $1;
+      // empty columns
+      $$->valid = false;
+    }
+    ;
+
+aggr_op:
+      MAX { $$ = AGGR_MAX; }
+    | MIN { $$ = AGGR_MIN; }
+    | COUNT { $$ = AGGR_COUNT; }
+    | AVG { $$ = AGGR_AVG; }
+    | SUM { $$ = AGGR_SUM; }
+    ;
+
+rel_aggr_attr:
+    rel_attr
+    | aggr_attr
+    ;
+
+rel_aggr_attr_list:
+    /* empty */
+    {
+      $$ = nullptr;
+    }
+    | COMMA rel_aggr_attr rel_aggr_attr_list {
+      if ($3 != nullptr) {
+        $$ = $3;
+      } else {
+        $$ = new std::vector<RelAttrSqlNode>;
+      }
+
+      $$->emplace_back(*$2);
+      delete $2;
+    }
+    ;
+
+rel_attr_wildcard:
+    '*' {
+      $$ = new RelAttrSqlNode;
+      $$->relation_name = "";
+      $$->attribute_name = "*";
+    }
+    | rel_attr
+    ;
+
+rel_attr_wildcard_list:
+    /* empty */
+    {
+      $$ = nullptr;
+    }
+    | COMMA rel_attr_wildcard rel_attr_wildcard_list {
+      if ($3 != nullptr) {
+        $$ = $3;
+      } else {
+        $$ = new std::vector<RelAttrSqlNode>;
+      }
+
+      $$->emplace_back(*$2);
+      delete $2;
     }
     ;
 
@@ -522,23 +678,6 @@ rel_attr:
       $$->attribute_name = $3;
       free($1);
       free($3);
-    }
-    ;
-
-attr_list:
-    /* empty */
-    {
-      $$ = nullptr;
-    }
-    | COMMA rel_attr attr_list {
-      if ($3 != nullptr) {
-        $$ = $3;
-      } else {
-        $$ = new std::vector<RelAttrSqlNode>;
-      }
-
-      $$->emplace_back(*$2);
-      delete $2;
     }
     ;
 
@@ -558,6 +697,32 @@ rel_list:
       free($2);
     }
     ;
+
+join_list:
+    {
+      $$ = nullptr;
+    }
+    | INNER join_list {
+      $$ = $2;
+    }
+    | JOIN ID ON condition_list join_list {
+      $$ = new JoinSqlNode();
+
+      if ($4 != nullptr) {
+        $$->conditions.swap(*$4);
+        delete $4;
+      }
+
+      $$->relations.push_back($2);
+      // $$->conditions.push_back(*$4);
+      free($2);
+
+      if ($5 != nullptr) {
+        $$->relations.insert($$->relations.end(), $5->relations.begin(), $5->relations.end());
+        $$->conditions.insert($$->conditions.end(), $5->conditions.begin(), $5->conditions.end());
+        delete $5;
+      }
+    }
 where:
     /* empty */
     {
@@ -641,6 +806,8 @@ comp_op:
     | LE { $$ = LESS_EQUAL; }
     | GE { $$ = GREAT_EQUAL; }
     | NE { $$ = NOT_EQUAL; }
+    | NOT LKE { $$ = NOT_LIKE; }
+    | LKE { $$ = LIKE; }
     ;
 
 load_data_stmt:

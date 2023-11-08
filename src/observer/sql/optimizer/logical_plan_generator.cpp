@@ -24,6 +24,8 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/join_logical_operator.h"
 #include "sql/operator/project_logical_operator.h"
 #include "sql/operator/explain_logical_operator.h"
+#include "sql/operator/update_logical_operator.h"
+#include "sql/operator/aggregate_logical_operator.h"
 
 #include "sql/stmt/stmt.h"
 #include "sql/stmt/calc_stmt.h"
@@ -32,6 +34,9 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/insert_stmt.h"
 #include "sql/stmt/delete_stmt.h"
 #include "sql/stmt/explain_stmt.h"
+#include "sql/stmt/update_stmt.h"
+
+#include "sql/parser/parse.h"
 
 using namespace std;
 
@@ -63,8 +68,15 @@ RC LogicalPlanGenerator::create(Stmt *stmt, unique_ptr<LogicalOperator> &logical
       ExplainStmt *explain_stmt = static_cast<ExplainStmt *>(stmt);
       rc = create_plan(explain_stmt, logical_operator);
     } break;
+
+    // 更新
+    case StmtType::UPDATE: {
+      UpdateStmt *update_stmt = static_cast<UpdateStmt *>(stmt);
+      rc = create_plan(update_stmt, logical_operator);
+    } break;
+
     default: {
-      rc = RC::UNIMPLENMENT;
+      rc = RC::UNIMPLEMENT;
     }
   }
   return rc;
@@ -121,7 +133,18 @@ RC LogicalPlanGenerator::create_plan(
     }
   }
 
-  logical_operator.swap(project_oper);
+  if (all_fields[0].aggregation() != AggrOp::AGGR_NONE) {
+    unique_ptr<LogicalOperator> aggregate_oper(new AggregateLogicalOperator(all_fields));
+    if (project_oper) {
+      aggregate_oper->add_child(std::move(project_oper));
+    }
+    LOG_TRACE("create a logical plan ends with aggregate operator");
+    logical_operator.swap(aggregate_oper);
+  } else {
+    LOG_TRACE("create a logical plan ends with project operator");
+    logical_operator.swap(project_oper);
+  }
+
   return RC::SUCCESS;
 }
 
@@ -161,7 +184,7 @@ RC LogicalPlanGenerator::create_plan(
 {
   Table *table = insert_stmt->table();
   vector<Value> values(insert_stmt->values(), insert_stmt->values() + insert_stmt->value_amount());
-
+  
   InsertLogicalOperator *insert_operator = new InsertLogicalOperator(table, values);
   logical_operator.reset(insert_operator);
   return RC::SUCCESS;
@@ -211,5 +234,38 @@ RC LogicalPlanGenerator::create_plan(
 
   logical_operator = unique_ptr<LogicalOperator>(new ExplainLogicalOperator);
   logical_operator->add_child(std::move(child_oper));
+  return rc;
+}
+
+RC LogicalPlanGenerator::create_plan(
+    UpdateStmt *update_stmt, unique_ptr<LogicalOperator> &logical_operator)
+{
+  Table *table = update_stmt->table();
+
+  // 首先创建select和filter算子
+  std::vector<Field> fields;
+  fields.emplace_back(update_stmt->field());
+  unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, fields, false));
+  
+  // 过滤算子
+  unique_ptr<LogicalOperator> filter_oper;
+  FilterStmt *filter_stmt = update_stmt->filter_stmt();
+  RC rc = create_plan(filter_stmt, filter_oper);
+  if (rc != RC::SUCCESS){
+    return rc;
+  }
+
+  unique_ptr<LogicalOperator> update_oper(new UpdateLogicalOperator(table, update_stmt->field(), update_stmt->value()));
+
+
+  if (filter_oper){
+    filter_oper->add_child(std::move(table_get_oper));
+    update_oper->add_child(std::move(filter_oper));
+  }else{
+    update_oper->add_child(std::move(table_get_oper));
+  }
+
+  logical_operator = std::move(update_oper);
+  
   return rc;
 }

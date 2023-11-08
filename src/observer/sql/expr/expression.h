@@ -73,7 +73,7 @@ public:
    */
   virtual RC try_get_value(Value &value) const
   {
-    return RC::UNIMPLENMENT;
+    return RC::UNIMPLEMENT;
   }
 
   /**

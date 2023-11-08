@@ -15,6 +15,11 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/index_scan_physical_operator.h"
 #include "storage/index/index.h"
 #include "storage/trx/trx.h"
+#include "storage/index/bplus_tree.h"
+#include "storage/buffer/disk_buffer_pool.h"
+#include "common/log/log.h"
+#include "sql/parser/parse_defs.h"
+#include "common/lang/lower_bound.h"
 
 IndexScanPhysicalOperator::IndexScanPhysicalOperator(
     Table *table, Index *index, bool readonly, 
@@ -34,18 +39,79 @@ IndexScanPhysicalOperator::IndexScanPhysicalOperator(
   }
 }
 
+IndexScanPhysicalOperator::IndexScanPhysicalOperator(
+    Table *table, Index *index, bool readonly, 
+    std::vector<Value> left_values, bool left_inclusive, 
+    std::vector<Value> right_values, bool right_inclusive)
+    : table_(table), 
+      index_(index),
+      readonly_(readonly),
+      left_values_(left_values),
+      left_inclusive_(left_inclusive), 
+      right_values_(right_values),
+      right_inclusive_(right_inclusive){}
+
+
+
+
 RC IndexScanPhysicalOperator::open(Trx *trx)
 {
   if (nullptr == table_ || nullptr == index_) {
     return RC::INTERNAL;
   }
 
-  IndexScanner *index_scanner = index_->create_scanner(left_value_.data(),
-      left_value_.length(),
+  std::cout << "left_value:"<<left_value_.data()<<std::endl;
+
+  // common::MemPoolItem::unique_ptr left_pkey = mem_pool_item_->alloc_unique_ptr();
+  // common::MemPoolItem::unique_ptr right_pkey = mem_pool_item_->alloc_unique_ptr();
+
+  // if (left_pkey == nullptr || right_pkey == nullptr) {
+  //   LOG_WARN("Failed to alloc memory for key.");
+  //   return RC::INTERNAL;
+  // }
+  
+  
+  char *left_key = (char *)malloc(left_values_.size() * sizeof(char));
+  char *right_key = (char *)malloc(left_values_.size() * sizeof(char));
+
+
+  if (left_key == nullptr || right_key == nullptr) {
+    LOG_WARN("Failed to alloc memory for key.");
+    return RC::INTERNAL;
+  }
+
+  int allocate_idx = 0;
+  int left_lengths = 0;
+  int right_lengths = 0;
+  std::cout<<"check malloc"<<std::endl;
+
+  for (int i=0;i<left_values_.size();++i){
+    memcpy(left_key+allocate_idx, left_values_[i].data(),left_values_[i].length());
+    memcpy(right_key+allocate_idx, right_values_[i].data(),right_values_[i].length());
+    std::cout<<*(int *)(left_key + allocate_idx) <<" "<<*(int *)(right_key + allocate_idx) ;
+    allocate_idx += left_values_[i].length();
+    left_lengths += left_values_[i].length();
+    right_lengths += right_values_[i].length();
+  }
+
+  std::cout<<"\ncheck finished!"<<std::endl;
+
+
+  // IndexScanner *index_scanner = index_->create_scanner(left_value_.data(),
+  //     left_value_.length(),
+  //     left_inclusive_,
+  //     right_value_.data(),
+  //     right_value_.length(),
+  //     right_inclusive_);
+
+  IndexScanner *index_scanner = index_->create_scanner(left_key,
+      left_lengths,
       left_inclusive_,
-      right_value_.data(),
-      right_value_.length(),
+      right_key,
+      right_lengths,
       right_inclusive_);
+
+
   if (nullptr == index_scanner) {
     LOG_WARN("failed to create index scanner");
     return RC::INTERNAL;
@@ -74,6 +140,13 @@ RC IndexScanPhysicalOperator::next()
 
   bool filter_result = false;
   while (RC::SUCCESS == (rc = index_scanner_->next_entry(&rid))) {
+  // while (true){
+  //   RC rc = index_scanner_->next_entry(&rid);
+  //   if (rc != RC::SUCCESS){
+  //     std::cout<<"failed!"<<std::endl;
+  //     continue;
+  //   }
+    std::cout << rid.page_num<<" "<<rid.slot_num<<std::endl;
     rc = record_handler_->get_record(record_page_handler_, &rid, readonly_, &current_record_);
     if (rc != RC::SUCCESS) {
       return rc;

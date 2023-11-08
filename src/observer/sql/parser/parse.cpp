@@ -47,3 +47,34 @@ RC parse(const char *st, ParsedSqlResult *sql_result)
   sql_parse(st, sql_result);
   return RC::SUCCESS;
 }
+
+RC aggr_to_string(const AggrOp aggr, std::string &repr) {
+  RC rc = RC::SUCCESS;
+  switch (aggr) {
+    case AggrOp::AGGR_MAX:
+      repr = "MAX";
+      break;
+    case AggrOp::AGGR_MIN:
+      repr = "MIN";
+      break;
+    case AggrOp::AGGR_COUNT:
+      repr = "COUNT";
+      break;
+    case AggrOp::AGGR_COUNT_ALL:
+      repr = "COUNT(*)";
+      break;
+    case AggrOp::AGGR_AVG:
+      repr = "AVG";
+      break;
+    case AggrOp::AGGR_SUM:
+      repr = "SUM";
+      break;
+    case AggrOp::AGGR_NONE:
+      repr = "";
+      break;
+    default:
+      LOG_WARN("unimplemented aggregation");
+      return RC::UNIMPLEMENT;
+  }
+  return rc;
+}

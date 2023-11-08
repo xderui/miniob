@@ -97,3 +97,6 @@ FAILURE
 SELECT min(num),max(num),avg(num) FROM aggregation_func;
 MIN(NUM) | MAX(NUM) | AVG(NUM)
 12 | 18 | 15
+SELECT avg(num),count(*) FROM aggregation_func;
+AVG(NUM) | COUNT(*)
+15 | 4

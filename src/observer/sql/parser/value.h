@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include <string>
+// #include "observer/common/rc.h"
 
 /**
  * @brief 属性的类型
@@ -26,6 +27,7 @@ enum AttrType
   CHARS,          ///< 字符串类型
   INTS,           ///< 整数类型(4字节)
   FLOATS,         ///< 浮点数类型(4字节)
+  DATES,          
   BOOLEANS,       ///< boolean类型，当前不是由parser解析出来的，是程序内部使用的
 };
 
@@ -49,6 +51,7 @@ public:
   explicit Value(int val);
   explicit Value(float val);
   explicit Value(bool val);
+  explicit Value(const char *date, int len, int flag);  //加入flag参数是为了和string类型的构造函数区分
   explicit Value(const char *s, int len = 0);
 
   Value(const Value &other) = default;
@@ -67,6 +70,8 @@ public:
   void set_float(float val);
   void set_boolean(bool val);
   void set_string(const char *s, int len = 0);
+  void set_date(int val);
+  // void set_date(const char* date, int len);
   void set_value(const Value &value);
 
   std::string to_string() const;
@@ -93,6 +98,7 @@ public:
   float get_float() const;
   std::string get_string() const;
   bool get_boolean() const;
+  int get_date() const;
 
 private:
   AttrType attr_type_ = UNDEFINED;
@@ -102,6 +108,18 @@ private:
     int int_value_;
     float float_value_;
     bool bool_value_;
+    int date_value_;    //采用int存储date类型
   } num_value_;
   std::string str_value_;
 };
+
+
+
+// 下面是一些date串相关的检查与转换方法
+
+
+bool is_leap_year(int year);
+void strDate_to_intDate_(const char* strDate, int& intDate);
+void intDate_to_strDate_(const int intDate, std::string& strDate);
+std::string floatString_to_String(std::string floatString);
+std::string removeFloatStringEndZero(std::string str);

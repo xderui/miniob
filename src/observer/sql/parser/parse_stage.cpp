@@ -31,8 +31,8 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
 {
   RC rc = RC::SUCCESS;
   
-  SqlResult *sql_result = sql_event->session_event()->sql_result();
-  const std::string &sql = sql_event->sql();
+  SqlResult *sql_result = sql_event->session_event()->sql_result();   // 
+  const std::string &sql = sql_event->sql();   // 
 
   ParsedSqlResult parsed_sql_result;
 

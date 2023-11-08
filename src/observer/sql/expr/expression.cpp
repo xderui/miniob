@@ -79,6 +79,59 @@ RC CastExpr::try_get_value(Value &value) const
 
 ////////////////////////////////////////////////////////////////////////////////
 
+bool isMatch(Value left, Value right) {
+
+  std::string left_str = left.get_string();
+  std::string right_str = right.get_string();
+
+
+  //取包含%或_的作为pattern
+  int left_len = left_str.length();
+  int right_len = right_str.length();
+
+  std::string pattern, target;  // match_str为包含正则的字符串，target_str为另一个字符串
+  
+  int left_flag = 0;
+  for(int i=0;i<left_len;++i){
+    if(left_str[i]=='%' || left_str[i]=='_'){
+      left_flag = 1;
+      pattern = left_str;
+      target = right_str;
+      break;
+    }
+  }
+
+  if (!left_flag){
+    pattern = right_str;
+    target = left_str;
+  }
+
+
+  int m = pattern.length();
+  int n = target.length();
+  std::vector<std::vector<bool>> dp(m + 1, std::vector<bool>(n + 1, false));
+  
+  dp[0][0] = true;
+
+  for (int i = 1; i <= m; i++) {
+      if (pattern[i - 1] == '%') {
+          dp[i][0] = dp[i - 1][0];
+      }
+  }
+
+  for (int i = 1; i <= m; i++) {
+      for (int j = 1; j <= n; j++) {
+          if (pattern[i - 1] == target[j - 1] || pattern[i - 1] == '_') {
+              dp[i][j] = dp[i - 1][j - 1];
+          } else if (pattern[i - 1] == '%') {
+              dp[i][j] = dp[i - 1][j] || dp[i][j - 1];
+          }
+      }
+  }
+
+  return dp[m][n];
+}
+
 ComparisonExpr::ComparisonExpr(CompOp comp, unique_ptr<Expression> left, unique_ptr<Expression> right)
     : comp_(comp), left_(std::move(left)), right_(std::move(right))
 {}
@@ -110,6 +163,12 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
     case GREAT_THAN: {
       result = (cmp_result > 0);
     } break;
+    case LIKE: {
+      result = isMatch(left, right);
+    }break;
+    case NOT_LIKE: {
+      result = !isMatch(left, right);
+    }break;
     default: {
       LOG_WARN("unsupported comparison. %d", comp_);
       rc = RC::INTERNAL;
