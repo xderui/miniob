@@ -1,3 +1,22 @@
+# 说明
+
+进行了两周的比赛，最后成绩是230/520，排名110左右(一共1000多个队伍)
+主要实现的功能如下：
+- aggregation-func
+- drop-table
+- date
+- join-tables
+- like
+- unique
+- multi-index
+- order-by	
+- big-order-by
+- big-query
+- big-write
+
+最后的big-order-by, big-query和big-write似乎只需要把排序和索引部分写完就可以过，所以这三个没有特意地写。
+
+---
 # MiniOB 概述
 
 MiniOB 是 [OceanBase](https://github.com/oceanbase/oceanbase) 团队基于华中科技大学数据库课程原型，联合多所高校重新开发的、专为零基础的同学设计的数据库入门学习项目。我们的目标是为在校学生、数据库从业者、爱好者或对基础技术感兴趣的人提供一个友好的数据库学习项目。
